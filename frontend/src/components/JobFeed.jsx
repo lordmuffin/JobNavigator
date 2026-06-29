@@ -472,21 +472,57 @@ export default function JobFeed() {
     })
   }
 
+  // Top up the visible list when triage has drained it. SF-1 removes processed
+  // jobs locally without refetching; without this the list just shrinks to empty
+  // instead of pulling in the next jobs from the pool (offset 30+). Fetches at
+  // the current offset+filters and appends only ids not already shown, so it
+  // refills once per ~20 jobs processed rather than once per keystroke.
+  const REFILL_THRESHOLD = 10
+  const refillingRef = useRef(false)
+  const refillIfLow = useCallback(async () => {
+    if (refillingRef.current) return
+    const current = jobsRef.current || []
+    // jobsRef can lag the pending removal by one — generous threshold covers it.
+    if (current.length > REFILL_THRESHOLD) return
+    refillingRef.current = true
+    try {
+      const params = { limit, offset }
+      if (filters.status.length) params.status = filters.status.join(',')
+      if (filters.company.length) params.company = filters.company.join(',')
+      if (filters.source.length) params.source = filters.source.join(',')
+      if (filters.h1b_verdict.length) params.h1b_verdict = filters.h1b_verdict.join(',')
+      if (filters.min_score !== '') params.min_score = filters.min_score
+      if (debouncedTitleSearch) params.title_search = debouncedTitleSearch
+      if (sortBy !== 'date') params.sort_by = sortBy
+      if (minSalary) params.min_salary = Number(minSalary) * 1000
+      if (maxSalary) params.max_salary = Number(maxSalary) * 1000
+      const { data } = await api.get('/jobs', { params })
+      setJobs(prev => {
+        const seen = new Set(prev.map(j => j.id))
+        const fresh = (data.jobs || []).filter(j => !seen.has(j.id))
+        return fresh.length ? [...prev, ...fresh] : prev
+      })
+      setTotal(data.total)
+    } catch (e) { console.error('Refill failed:', e) }
+    refillingRef.current = false
+  }, [filters, offset, limit, debouncedTitleSearch, sortBy, minSalary, maxSalary])
+
   // SF-1: triage actions (save/skip/apply) already advance the UI optimistically —
   // patch the one affected job in local state instead of refetching the whole page.
   // If the new status falls outside the active status filter, the row leaves the
-  // list (exactly what the old refetch did). Reconciliation still happens on any
-  // filter change / pagination / undo / bulk action, which all refetch.
+  // list (exactly what the old refetch did) and we top up when the list runs low.
+  // Reconciliation still happens on any filter change / pagination / undo / bulk.
   const patchJobLocally = useCallback((jobId, changes) => {
     const statusFilter = filters.status || []
     const leavesView = statusFilter.length > 0 && changes.status && !statusFilter.includes(changes.status)
     if (leavesView) {
       setJobs(prev => prev.filter(j => j.id !== jobId))
       setTotal(t => Math.max(0, t - 1))
+      refillIfLow()
     } else {
       setJobs(prev => prev.map(j => j.id === jobId ? { ...j, ...changes } : j))
     }
-  }, [filters.status])
+  }, [filters.status, refillIfLow])
   const patchJobLocallyRef = useRef(patchJobLocally)
   useEffect(() => { patchJobLocallyRef.current = patchJobLocally }, [patchJobLocally])
 
