@@ -180,6 +180,7 @@ def determine_h1b_verdict(lca_count: int, jd_flag: bool) -> str:
     """
     if jd_flag:
         return "unlikely"
+    lca_count = lca_count or 0  # untracked companies have no LCA data (None)
     if lca_count > 50:
         return "likely"
     if lca_count >= 10:

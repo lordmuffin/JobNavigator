@@ -11,47 +11,46 @@ async def test_progress_records_analysis_error(monkeypatch):
     # Reset progress
     ext._linkedin_import_progress.clear()
 
-    # Stub LinkedIn API
-    class FakeLi:
-        def __init__(self, *a, **kw): pass
-        def get_job(self, lid):
-            return {
-                "title": "Senior Product Manager",
-                "companyDetails": {
-                    "com.linkedin.voyager.deco.jobs.web.shared.WebCompactJobPostingCompany": {
-                        "companyResolutionResult": {"universalName": "acme", "name": "Acme"}
-                    }
-                },
-                "description": {"text": "We sponsor visas."},
-                "formattedLocation": "San Francisco",
-                "applyMethod": {},
-            }
+    # Session present (persisted cookies) so enrich proceeds past the session gate
+    monkeypatch.setattr(ext, "_load_session_cookies",
+                        lambda: [{"name": "li_at", "value": "x"}])
 
-    monkeypatch.setattr("linkedin_api.Linkedin", FakeLi, raising=False)
+    # Fake logged-in browser (linkedin_personal._get_linkedin_browser is imported
+    # lazily inside enrich, so patch it at its source module).
+    fake_page = MagicMock()
+    fake_page.goto = AsyncMock()
+    fake_page.evaluate = AsyncMock(return_value=200)
+    fake_context = MagicMock()
+    fake_context.add_cookies = AsyncMock()
+    fake_browser = MagicMock(); fake_browser.close = AsyncMock()
+    fake_pw = MagicMock(); fake_pw.stop = AsyncMock()
+
+    async def fake_get_browser():
+        return fake_pw, fake_browser, fake_context, fake_page
+
+    monkeypatch.setattr(
+        "backend.scraper.sources.linkedin_personal._get_linkedin_browser",
+        fake_get_browser, raising=False)
+
+    # Voyager fetch returns a valid job (used for both the session probe + the loop)
+    async def fake_voyager(page, lid):
+        return {"title": "Senior Product Manager", "company": "Acme",
+                "location": "San Francisco", "description": "We sponsor visas.",
+                "apply_url": ""}
+
+    monkeypatch.setattr(ext, "_voyager_fetch", fake_voyager)
 
     # Break check_job_h1b so the analysis inside the enrich loop raises
-    async def broken_h1b(job, db=None):
+    async def broken_h1b(job, db=None, **kwargs):
         raise RuntimeError("h1b broken")
 
-    # linkedin_extension imports check_job_h1b at module load, patch the ref there
     monkeypatch.setattr(ext, "check_job_h1b", broken_h1b)
 
     # Stub DB session so we don't need real Postgres
     fake_db = MagicMock()
-    # Route query(...).filter(...).first() / .all() to sensible defaults.
-    # Setting lookups need a truthy .value so credential check passes.
-    setting_mock = MagicMock()
-    setting_mock.value = "stub"
 
     def _query_side_effect(model, *args, **kwargs):
         q = MagicMock()
-        name = getattr(model, "__name__", str(model))
-        if "Setting" in name:
-            q.filter.return_value.first.return_value = setting_mock
-            q.filter.return_value.all.return_value = []
-            q.all.return_value = []
-            return q
-        # Job / Company / Search / anything else: empty results
         q.filter.return_value.first.return_value = None
         q.filter.return_value.all.return_value = []
         q.all.return_value = []
@@ -59,20 +58,16 @@ async def test_progress_records_analysis_error(monkeypatch):
 
     fake_db.query.side_effect = _query_side_effect
     monkeypatch.setattr(ext, "SessionLocal", lambda: fake_db)
-    # Neutralize get_existing_external_ids/build_company_lookup/find_company_by_name
     monkeypatch.setattr(ext, "get_existing_external_ids", lambda db: set())
     monkeypatch.setattr(ext, "build_company_lookup", lambda db: {})
-    # Neutralize get_global_title_exclude (imported lazily inside enrich)
     monkeypatch.setattr(
         "backend.models.db.get_global_title_exclude", lambda db: [], raising=False
     )
-    # Neutralize salary extractor (imported at module load in enrich)
     monkeypatch.setattr(ext, "apply_salary_to_job", lambda job, median=None: None)
 
     await ext.enrich(["12345"])
 
     # After the run, progress dict should reflect the error
-    # Accept either an "errors" counter or an "error_details" list
     errs = ext._linkedin_import_progress.get("errors", 0)
     details = ext._linkedin_import_progress.get("error_details", [])
     assert errs > 0 or len(details) > 0, (
