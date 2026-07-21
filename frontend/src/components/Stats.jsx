@@ -581,7 +581,7 @@ export default function Stats() {
               <option value="">All Types</option>
               <option value="scrape">Scrape</option>
               <option value="h1b">H-1B</option>
-              <option value="cv_score">CV Score</option>
+              <option value="cv_score">Resume Score</option>
               <option value="email">Email</option>
               <option value="telegram">Telegram</option>
             </select>

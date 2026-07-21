@@ -61,7 +61,7 @@ OPENAPI_TAGS = [
     {"name": "stats", "description": "Aggregate statistics and scrape history"},
     {"name": "settings", "description": "Global settings (key-value store)"},
     {"name": "searches", "description": "Search configurations for JobSpy board scraping"},
-    {"name": "companies", "description": "Company management - scrape URLs, CV selection, H-1B data, filters"},
+    {"name": "companies", "description": "Company management - scrape URLs, Resume selection, H-1B data, filters"},
     {"name": "jobs", "description": "Job listings discovered by scrapers"},
     {"name": "applications", "description": "Job applications tracked by Chrome extension and email monitor"},
     {"name": "telegram", "description": "Telegram bot webhook and test endpoints"},
@@ -74,7 +74,7 @@ app = FastAPI(
     version="1.0.0",
     description=(
         "Personal job hunt automation system. Scrapes job boards and career pages, "
-        "scores jobs against CVs using Claude API, monitors Gmail for responses, "
+        "scores jobs against resumes using Claude API, monitors Gmail for responses, "
         "sends Telegram notifications.\n\n"
         "**Auth:** Pass `X-API-Key` header with dashboard API key. "
         "Health, docs, and OpenAPI endpoints skip auth."
@@ -366,7 +366,7 @@ async def trigger_h1b_refresh():
 
 @app.post("/api/analyze/{job_id}", tags=["triggers"], summary="Analyze a single job", status_code=202)
 async def trigger_analysis(job_id: str, depth: str = "full", body: dict = None):
-    """Re-run CV scoring for a specific job. depth: 'light' or 'full' (default)."""
+    """Re-run resume scoring for a specific job. depth: 'light' or 'full' (default)."""
     import uuid as _uuid
     cv_ids = (body or {}).get("cv_ids")
 
@@ -1001,9 +1001,9 @@ def get_stats_timeline(days: int = 30):
         db.close()
 
 
-@app.get("/api/stats/score-distribution", tags=["stats"], summary="CV score distribution")
+@app.get("/api/stats/score-distribution", tags=["stats"], summary="Resume score distribution")
 def get_score_distribution():
-    """Distribution of best CV scores across all scored jobs."""
+    """Distribution of best resume scores across all scored jobs."""
     from backend.models.db import Job
 
     db = SessionLocal()

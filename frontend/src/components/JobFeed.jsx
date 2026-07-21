@@ -109,9 +109,9 @@ export default function JobFeed() {
   // Score tooltip and report modal
   const [tooltipJob, setTooltipJob] = useState(null)
   const [reportJob, setReportJob] = useState(null)
-  const [reportCv, setReportCv] = useState(null) // which CV's report to show
+  const [reportCv, setReportCv] = useState(null) // which Resume's report to show
 
-  // CV generation modal
+  // Resume generation modal
   const [showCvModal, setShowCvModal] = useState(false)
   const [cvBaseResumes, setCvBaseResumes] = useState([])
   const [cvSelectedBase, setCvSelectedBase] = useState('')
@@ -916,7 +916,7 @@ export default function JobFeed() {
                                 job.tailored_resume_id ? (
                                   <a href={`/resumes?resume=${job.tailored_resume_id}`} onClick={e => e.stopPropagation()}
                                     className="px-1.5 py-0.5 rounded text-purple-500 hover:text-purple-700 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/30"
-                                    title="Tailored CV available">
+                                    title="Tailored Resume available">
                                     <ScrollText size={14} />
                                   </a>
                                 ) : null
@@ -1098,7 +1098,7 @@ export default function JobFeed() {
                     setCvMode('tailor'); setShowCvModal(true)
                   }}
                   className="flex items-center gap-1 px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded dark:text-purple-400 dark:hover:bg-purple-900/30">
-                  <FileText size={12} /> Tailor CV
+                  <FileText size={12} /> Tailor Resume
                 </button>
                 <button onClick={async () => {
                     try {
@@ -1112,7 +1112,7 @@ export default function JobFeed() {
                     setCvMode('copy'); setShowCvModal(true)
                   }}
                   className="flex items-center gap-1 px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded dark:text-purple-400 dark:hover:bg-purple-900/30">
-                  <FileText size={12} /> Copy CV
+                  <FileText size={12} /> Copy Resume
                 </button>
                 <button onClick={() => navigate(`/cover-letters?job=${selectedJob.id}`)}
                   className="flex items-center gap-1 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 rounded dark:text-indigo-400 dark:hover:bg-indigo-900/30">
@@ -1225,8 +1225,8 @@ export default function JobFeed() {
             <div key={t.id} className={`rounded-lg px-4 py-3 flex items-center gap-3 shadow-xl text-white text-sm ${
               t.status === 'loading' || t.status === 'running' ? 'bg-gray-800' : 'bg-red-700'
             }`}>
-              {t.status === 'loading' && <><Loader2 size={14} className="animate-spin flex-shrink-0" /> Tailoring CV for {t.company}...</>}
-              {t.status === 'running' && <><Loader2 size={14} className="animate-spin flex-shrink-0" /> Tailoring CV for {t.company} in background...</>}
+              {t.status === 'loading' && <><Loader2 size={14} className="animate-spin flex-shrink-0" /> Tailoring Resume for {t.company}...</>}
+              {t.status === 'running' && <><Loader2 size={14} className="animate-spin flex-shrink-0" /> Tailoring Resume for {t.company} in background...</>}
               {t.status === 'error' && (
                 <>
                   <Ban size={14} className="flex-shrink-0" />
@@ -1269,7 +1269,7 @@ export default function JobFeed() {
               </button>
             </div>
 
-            {/* CV tabs */}
+            {/* Resume tabs */}
             {cvNames.length > 1 && (
               <div className="flex gap-1 px-5 pt-3 border-b dark:border-gray-700">
                 {cvNames.map(cv => (
@@ -1375,7 +1375,7 @@ export default function JobFeed() {
       {showCvModal && selectedJob && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-[400px]">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{cvMode === 'copy' ? 'Copy CV for Job' : 'Tailor CV for Job'}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{cvMode === 'copy' ? 'Copy Resume for Job' : 'Tailor Resume for Job'}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {selectedJob.company} — {selectedJob.title}
             </p>
@@ -1398,7 +1398,7 @@ export default function JobFeed() {
                 className="px-4 py-1.5 text-sm border rounded dark:border-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
               <button onClick={generateCv} disabled={cvGenerating || !cvSelectedBase}
                 className="px-4 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
-                {cvGenerating ? <><Loader2 size={14} className="animate-spin" /> {cvMode === 'copy' ? 'Copying...' : 'Generating...'}</> : cvMode === 'copy' ? 'Copy with Tracer Links' : 'Generate Tailored CV'}
+                {cvGenerating ? <><Loader2 size={14} className="animate-spin" /> {cvMode === 'copy' ? 'Copying...' : 'Generating...'}</> : cvMode === 'copy' ? 'Copy with Tracer Links' : 'Generate Tailored Resume'}
               </button>
             </div>
           </div>

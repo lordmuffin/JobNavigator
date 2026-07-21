@@ -1,6 +1,6 @@
 """LLM pricing and cost calculation.
 
-Prices in USD per million tokens as of 2026-04. Update PRICING when models change.
+Prices in USD per million tokens as of 2026-07. Update PRICING when models change.
 Sources: https://www.anthropic.com/pricing, https://openai.com/pricing
 
 Keyed by (provider, model) because the same model name can be billed differently
@@ -9,44 +9,46 @@ API but is covered by the Max/Pro subscription when used via the Claude Code CLI
 """
 from typing import Optional
 
-# Per million tokens, USD. Cache read = 10% of input, cache write = 125% of input.
+# Anthropic: cache read = 10% of input, cache write (5m TTL) = 125% of input.
+_CLAUDE_FABLE_5 = {
+    "input_per_mtok": 10.0,
+    "output_per_mtok": 50.0,
+    "cache_read_per_mtok": 1.00,
+    "cache_write_per_mtok": 12.50,
+}
+_CLAUDE_OPUS = {  # Opus 4.6 / 4.7 / 4.8 share the $5/$25 rate card
+    "input_per_mtok": 5.0,
+    "output_per_mtok": 25.0,
+    "cache_read_per_mtok": 0.50,
+    "cache_write_per_mtok": 6.25,
+}
+_CLAUDE_SONNET = {  # Sonnet 5 sticker $3/$15 (intro $2/$10 runs through 2026-08-31)
+    "input_per_mtok": 3.0,
+    "output_per_mtok": 15.0,
+    "cache_read_per_mtok": 0.30,
+    "cache_write_per_mtok": 3.75,
+}
+_CLAUDE_HAIKU = {
+    "input_per_mtok": 1.0,
+    "output_per_mtok": 5.0,
+    "cache_read_per_mtok": 0.10,
+    "cache_write_per_mtok": 1.25,
+}
+
+# Per million tokens, USD.
 PRICING: dict[str, dict[str, dict]] = {
     "claude_api": {
-        "claude-sonnet-4-6": {
-            "input_per_mtok": 3.0,
-            "output_per_mtok": 15.0,
-            "cache_read_per_mtok": 0.30,
-            "cache_write_per_mtok": 3.75,
-        },
-        "claude-opus-4-6": {
-            "input_per_mtok": 15.0,
-            "output_per_mtok": 75.0,
-            "cache_read_per_mtok": 1.50,
-            "cache_write_per_mtok": 18.75,
-        },
-        "claude-haiku-4-5-20251001": {
-            "input_per_mtok": 1.0,
-            "output_per_mtok": 5.0,
-            "cache_read_per_mtok": 0.10,
-            "cache_write_per_mtok": 1.25,
-        },
+        "claude-fable-5": _CLAUDE_FABLE_5,
+        "claude-opus-4-8": _CLAUDE_OPUS,
+        "claude-opus-4-7": _CLAUDE_OPUS,
+        "claude-opus-4-6": _CLAUDE_OPUS,
+        "claude-sonnet-5": _CLAUDE_SONNET,
+        "claude-sonnet-4-6": _CLAUDE_SONNET,
+        "claude-haiku-4-5": _CLAUDE_HAIKU,
+        # Legacy dated ID kept so existing settings/logs still price correctly
+        "claude-haiku-4-5-20251001": _CLAUDE_HAIKU,
     },
     "openai": {
-        "gpt-4o": {
-            "input_per_mtok": 2.50,
-            "output_per_mtok": 10.0,
-            "cache_read_per_mtok": 2.50,
-            "cache_write_per_mtok": 2.50,
-        },
-        "gpt-4o-mini": {
-            "input_per_mtok": 0.15,
-            "output_per_mtok": 0.60,
-            "cache_read_per_mtok": 0.15,
-            "cache_write_per_mtok": 0.15,
-        },
-    },
-    "openai_compat": {
-        # Same rate card as OpenAI by default; user-deployed compat endpoints may vary.
         "gpt-4o": {
             "input_per_mtok": 2.50,
             "output_per_mtok": 10.0,

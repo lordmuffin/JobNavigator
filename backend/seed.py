@@ -35,24 +35,30 @@ DEFAULT_SETTINGS = {
     "jobright_session_id": ("", "Jobright.ai session cookie (auto-managed, 60-day expiry)"),
     "reject_cron": ("0 4 * * *", "Auto-reject cron (min hour day month dow). Empty = disabled"),
     "backup_cron": ("0 3 * * *", "Backup cron schedule (min hour day month dow). Empty = disabled"),
-    "scoring_rubric": ("Score each CV using these criteria (each 0-20, sum to 0-100):\n1. SKILLS MATCH (weight: 20): How many required technical skills/tools does the candidate have?\n2. EXPERIENCE LEVEL (weight: 20): Does seniority/years match? (entry-level CV for senior role = low)\n3. DOMAIN FIT (weight: 20): Has the candidate worked in the same industry/domain?\n4. ROLE ALIGNMENT (weight: 20): Does the candidate's career trajectory match this role type?\n5. REQUIREMENTS MET (weight: 20): Does the candidate meet stated requirements (education, certs, clearance)?\n\nUse the FULL 0-100 range. 90+ = perfect match. 50-70 = decent with gaps. Below 30 = poor match.\nAvoid clustering scores — differentiate meaningfully between CVs and jobs.", "Editable CV scoring rubric"),
+    "scoring_rubric": ("Score each resume using these criteria (each 0-20, sum to 0-100):\n1. SKILLS MATCH (weight: 20): How many required technical skills/tools does the candidate have?\n2. EXPERIENCE LEVEL (weight: 20): Does seniority/years match? (entry-level resume for senior role = low)\n3. DOMAIN FIT (weight: 20): Has the candidate worked in the same industry/domain?\n4. ROLE ALIGNMENT (weight: 20): Does the candidate's career trajectory match this role type?\n5. REQUIREMENTS MET (weight: 20): Does the candidate meet stated requirements (education, certs, clearance)?\n\nUse the FULL 0-100 range. 90+ = perfect match. 50-70 = decent with gaps. Below 30 = poor match.\nAvoid clustering scores — differentiate meaningfully between resumes and jobs.", "Editable resume scoring rubric"),
     "scoring_output_light": ('Return ONLY this JSON:\n{\n  "scores": {CV_NAMES_HERE: 0-100},\n  "best_cv": "CV_NAME"\n}', "Light scoring output schema"),
     "scoring_output_full": ('Return ONLY this JSON:\n{\n  "scores": {CV_NAMES_HERE: 0-100},\n  "best_cv": "CV_NAME",\n  "summary": "2-3 sentence assessment of candidate-job fit",\n  "requirement_mapping": [\n    {"requirement": "JD requirement text", "cv_match": "matching CV line or null", "matched": true/false, "severity": "required or preferred"}\n  ],\n  "keyword_coverage_pct": 0-100,\n  "matched_keywords": ["keyword1", "keyword2"],\n  "missing_keywords": ["keyword3", "keyword4"],\n  "hard_blockers": ["blocker if any"],\n  "ats_tip": "one actionable ATS optimization suggestion"\n}', "Full scoring output schema with keyword analysis"),
-    "llm_provider": ("claude_api", "LLM provider: claude_api, claude_code, openai, ollama, openai_compat"),
-    "llm_model": ("claude-sonnet-4-6", "LLM model name"),
-    "llm_api_key": ("", "API key for OpenAI/OpenRouter (not needed for Claude API/Ollama)"),
-    "llm_base_url": ("", "Custom API endpoint (only for openai_compat)"),
+    "llm_provider": ("claude_api", "LLM provider: claude_api, claude_code, openai, ollama"),
+    "llm_model": ("claude-sonnet-5", "LLM model name"),
+    "llm_api_key": ("", "API key for OpenAI (not needed for Claude API/Ollama)"),
     "llm_fallback_provider": ("", "Fallback LLM provider (empty = no fallback)"),
     "llm_fallback_model": ("", "Fallback model name"),
-    "llm_fallback_api_key": ("", "API key for fallback provider (OpenAI/OpenRouter)"),
-    "llm_fallback_base_url": ("", "Custom API endpoint for fallback (only for openai_compat)"),
+    "llm_fallback_api_key": ("", "API key for fallback provider (OpenAI)"),
     "llm_models_list": (json.dumps([
+        {"provider": "claude_api", "model": "claude-sonnet-5"},
         {"provider": "claude_api", "model": "claude-sonnet-4-6"},
+        {"provider": "claude_api", "model": "claude-opus-4-8"},
+        {"provider": "claude_api", "model": "claude-opus-4-7"},
         {"provider": "claude_api", "model": "claude-opus-4-6"},
-        {"provider": "claude_api", "model": "claude-haiku-4-5-20251001"},
+        {"provider": "claude_api", "model": "claude-haiku-4-5"},
+        {"provider": "claude_api", "model": "claude-fable-5"},
+        {"provider": "claude_code", "model": "claude-sonnet-5"},
         {"provider": "claude_code", "model": "claude-sonnet-4-6"},
+        {"provider": "claude_code", "model": "claude-opus-4-8"},
+        {"provider": "claude_code", "model": "claude-opus-4-7"},
         {"provider": "claude_code", "model": "claude-opus-4-6"},
-        {"provider": "claude_code", "model": "claude-haiku-4-5-20251001"},
+        {"provider": "claude_code", "model": "claude-haiku-4-5"},
+        {"provider": "claude_code", "model": "claude-fable-5"},
         {"provider": "openai", "model": "gpt-5.4"},
         {"provider": "openai", "model": "gpt-5.4-mini"},
         {"provider": "openai", "model": "gpt-5.4-nano"},
@@ -71,21 +77,11 @@ DEFAULT_SETTINGS = {
         {"provider": "ollama", "model": "mistral:7b"},
         {"provider": "ollama", "model": "gemma2:9b"},
         {"provider": "ollama", "model": "phi3:14b"},
-        {"provider": "openai_compat", "model": "anthropic/claude-sonnet-4-6"},
-        {"provider": "openai_compat", "model": "anthropic/claude-opus-4-6"},
-        {"provider": "openai_compat", "model": "openai/gpt-5.4"},
-        {"provider": "openai_compat", "model": "openai/o3"},
-        {"provider": "openai_compat", "model": "openai/o4-mini"},
-        {"provider": "openai_compat", "model": "google/gemini-3.1-pro-preview"},
-        {"provider": "openai_compat", "model": "google/gemini-2.5-flash"},
-        {"provider": "openai_compat", "model": "meta-llama/llama-3.3-70b-instruct"},
-        {"provider": "openai_compat", "model": "deepseek/deepseek-r1"},
-        {"provider": "openai_compat", "model": "qwen/qwen-2.5-72b-instruct"},
     ]), "Known LLM models per provider (JSON array, user can add custom entries)"),
     "scoring_max_concurrent": ("5", "Max parallel scoring jobs (others queue until a slot opens)"),
     "tailoring_max_concurrent": ("2", "Max concurrent resume-tailoring LLM calls"),
     "tailor_auto_quick_score": ("light", "After tailoring finishes, auto-launch a score chain. Values: 'off' | 'light' | 'full'. Default 'light'. Legacy 'true'='light', 'false'='off'."),
-    "prompt_caching_enabled": ("true", "Use Anthropic prompt caching on CV scoring (claude_api only; ~50% cheaper input tokens on same-batch calls). Set false to disable as a rollback lever."),
+    "prompt_caching_enabled": ("true", "Use Anthropic prompt caching on resume scoring (claude_api only; ~50% cheaper input tokens on same-batch calls). Set false to disable as a rollback lever."),
     "scoring_default_depth": ("light", "Default scoring depth: light or full"),
     "on_save_action": ("off", "Action when job is saved: off, light, or full"),
     "email_llm_enabled": ("false", "Enable LLM second pass for ambiguous email classification"),
@@ -115,10 +111,10 @@ DEFAULT_SETTINGS = {
         "newsletter", "webinar", "course", "discount",
         "event invitation", "job search council", "matched new opportunities"
     ]), "Subject terms to exclude from Gmail search query"),
-    "cv_tailor_llm_provider": ("", "LLM provider for CV tailoring (empty = use primary llm_provider)"),
-    "cv_tailor_llm_model": ("", "LLM model for CV tailoring (empty = use primary llm_model)"),
-    "cv_tailor_llm_api_key": ("", "API key for CV tailoring LLM provider"),
-    "cv_tailor_prompt": ("Tailor this resume for the job description below.\n\nRules for MAIN bullets[]:\n- Rewrite the summary to target this specific role\n- For each experience bullet: if it benefits from JD keyword alignment, reformulate it. If it's already well-suited, leave it UNCHANGED\n- Keep the same number of bullets per experience entry - do not add or remove\n- Reorder skills to prioritize JD-relevant ones first\n- Do NOT invent new experience, skills, or facts in the main bullets. If something is missing, map to the closest truthful concept\n- NEVER add skills the candidate does not have\n- Preserve all company names, titles, dates, locations, education exactly\n- Do NOT use em-dashes or unicode special characters. Use regular hyphens (-) and ASCII only\n- Preserve **bold** formatting (double asterisks) from the original bullets. For reformulated bullets, wrap the strongest metric or achievement in **bold** (e.g. **40,000+ new clients**, **reduced error rates by 30%**). Each bullet should have at most one bold highlight\n- VERIFICATION: every reformulated bullet must trace to the original resume. If you cannot trace it, leave the original unchanged.\n\nRules for suggested_bullets[] (gap-fillers - DIFFERENT from main bullets):\n- For each experience entry, generate 1-2 PLAUSIBLE STAR-format bullets that cover JD keywords/skills no existing bullet in this role covers\n- These MAY invent realistic, believable facts/metrics that someone in this role/title at this company at this seniority would credibly have done\n- Specifically target keywords from the JD that no existing bullet mentions\n- Use STAR format: strong action verb, context, concrete (possibly invented) metric or outcome\n- The user reviews these in a diff modal and accepts/rejects each - they know suggestions are speculative gap-fillers\n- Wrap the strongest metric in **bold** (one per bullet)\n- Skip a role entirely if no JD keyword gap exists for it\n\nResume:\n{resume_json}\n\nJob Description:\n{job_description}\n\nReturn ONLY this JSON:\n{\"summary\": \"rewritten summary\", \"experience\": [{\"company\": \"unchanged\", \"title\": \"unchanged\", \"location\": \"unchanged\", \"date\": \"unchanged\", \"description\": \"unchanged or null\", \"bullets\": [\"reformulated or unchanged bullet from existing content\"], \"suggested_bullets\": [\"plausible gap-filler covering missing JD keyword\"]}], \"skills\": {\"reordered label\": \"reordered value\"}}", "Editable CV tailoring LLM prompt template"),
+    "cv_tailor_llm_provider": ("", "LLM provider for resume tailoring (empty = use primary llm_provider)"),
+    "cv_tailor_llm_model": ("", "LLM model for resume tailoring (empty = use primary llm_model)"),
+    "cv_tailor_llm_api_key": ("", "API key for resume tailoring LLM provider"),
+    "cv_tailor_prompt": ("Tailor this resume for the job description below.\n\nRules for MAIN bullets[]:\n- Rewrite the summary to target this specific role\n- For each experience bullet: if it benefits from JD keyword alignment, reformulate it. If it's already well-suited, leave it UNCHANGED\n- Keep the same number of bullets per experience entry - do not add or remove\n- Reorder skills to prioritize JD-relevant ones first\n- Do NOT invent new experience, skills, or facts in the main bullets. If something is missing, map to the closest truthful concept\n- NEVER add skills the candidate does not have\n- Preserve all company names, titles, dates, locations, education exactly\n- Do NOT use em-dashes or unicode special characters. Use regular hyphens (-) and ASCII only\n- Preserve **bold** formatting (double asterisks) from the original bullets. For reformulated bullets, wrap the strongest metric or achievement in **bold** (e.g. **40,000+ new clients**, **reduced error rates by 30%**). Each bullet should have at most one bold highlight\n- VERIFICATION: every reformulated bullet must trace to the original resume. If you cannot trace it, leave the original unchanged.\n\nRules for suggested_bullets[] (gap-fillers - DIFFERENT from main bullets):\n- For each experience entry, generate 1-2 PLAUSIBLE STAR-format bullets that cover JD keywords/skills no existing bullet in this role covers\n- These MAY invent realistic, believable facts/metrics that someone in this role/title at this company at this seniority would credibly have done\n- Specifically target keywords from the JD that no existing bullet mentions\n- Use STAR format: strong action verb, context, concrete (possibly invented) metric or outcome\n- The user reviews these in a diff modal and accepts/rejects each - they know suggestions are speculative gap-fillers\n- Wrap the strongest metric in **bold** (one per bullet)\n- Skip a role entirely if no JD keyword gap exists for it\n\nResume:\n{resume_json}\n\nJob Description:\n{job_description}\n\nReturn ONLY this JSON:\n{\"summary\": \"rewritten summary\", \"experience\": [{\"company\": \"unchanged\", \"title\": \"unchanged\", \"location\": \"unchanged\", \"date\": \"unchanged\", \"description\": \"unchanged or null\", \"bullets\": [\"reformulated or unchanged bullet from existing content\"], \"suggested_bullets\": [\"plausible gap-filler covering missing JD keyword\"]}], \"skills\": {\"reordered label\": \"reordered value\"}}", "Editable resume tailoring LLM prompt template"),
     "persona_tailor_prompt": ("Tailor a FOCUSED resume from this rich candidate profile, targeted at the job description below.\n\nThe candidate profile is a deep pool - most roles have many bullets. SELECT only the strongest aligned with the JD; drop the rest.\n\nRules for MAIN bullets[]:\n- Rewrite the summary to target this specific role (2-4 sentences, lead with the most relevant strength)\n- For each experience entry: SELECT only 3-5 bullets (max 6 for the most senior/recent role) that best match JD keywords and required skills\n- Reformulate each selected bullet to use the JD's exact vocabulary where possible\n- Reorder skills to prioritize JD-relevant ones first; cap at 6 categories\n- Do NOT invent new experience, skills, or facts in the main bullets. Only reframe existing content from the candidate profile\n- NEVER add skills the candidate does not have\n- Preserve all company names, titles, dates, locations, education exactly\n- Do NOT use em-dashes or unicode special characters. Use regular hyphens (-) and ASCII only\n- Preserve **bold** formatting. For reformulated bullets, wrap the strongest metric in **bold** (one per bullet)\n- VERIFICATION: every selected/reformulated bullet must be traceable to the candidate profile\n\nRules for suggested_bullets[] (gap-fillers - DIFFERENT from main bullets):\n- For each experience entry, generate 1-2 PLAUSIBLE STAR-format bullets that cover JD keywords/skills no main bullet (selected from the pool) covers\n- These MAY invent realistic, believable facts/metrics that someone in this role at this company at this seniority would credibly have done\n- Specifically target JD keywords that no main bullet mentions\n- STAR format: strong action verb, context, concrete (possibly invented) metric or outcome\n- The user reviews these in a diff modal and accepts/rejects each\n- Wrap the strongest metric in **bold** (one per bullet)\n- Skip a role if no JD keyword gap exists\n\nCandidate Profile:\n{resume_json}\n\nJob Description:\n{job_description}\n\nReturn ONLY this JSON:\n{\"summary\": \"rewritten summary\", \"experience\": [{\"company\": \"unchanged\", \"title\": \"unchanged\", \"location\": \"unchanged\", \"date\": \"unchanged\", \"description\": \"unchanged or null\", \"bullets\": [\"selected + reformulated bullet from candidate profile\"], \"suggested_bullets\": [\"plausible gap-filler covering missing JD keyword\"]}], \"skills\": {\"reordered label\": \"reordered value\"}}", "Editable Persona tailoring LLM prompt template - used when base_resume_id='persona' to constrain bullet selection from the rich pool"),
     "cover_letter_llm_provider": ("", "LLM provider for cover-letter generation (empty = use primary llm_provider)"),
     "cover_letter_llm_model": ("", "LLM model for cover-letter generation (empty = use primary llm_model)"),
@@ -443,11 +439,75 @@ def cleanup_removed_settings(db):
         "max_jobs_per_scrape",
         "company_domains",
         "ats_domains",
+        # 2026-07: openai_compat provider removed — these endpoints were only for it
+        "llm_base_url",
+        "llm_fallback_base_url",
     ]
     for key in removed_keys:
         row = db.query(Setting).filter(Setting.key == key).first()
         if row:
             db.delete(row)
+    db.commit()
+
+
+def migrate_cv_terminology(db):
+    """Rename the user-facing word 'CV'/'CVs' -> 'Resume'/'Resumes' in editable
+    prompt-text settings, preserving user edits.
+
+    Word-boundary matching leaves the functional template tokens intact
+    (CV_NAMES_HERE / best_cv / CV_NAME are not \\bCV\\b matches). Idempotent.
+    """
+    import re
+    for key in ("scoring_rubric",):
+        row = db.query(Setting).filter(Setting.key == key).first()
+        if not row or not row.value:
+            continue
+        new = re.sub(r"\bCVs\b", "Resumes", row.value)
+        new = re.sub(r"\bCV\b", "Resume", new)
+        if new != row.value:
+            row.value = new
+    db.commit()
+
+
+def migrate_llm_settings(db):
+    """One-shot migrations for the 2026-07 model-list refresh + openai_compat removal.
+
+    - Refresh non-custom entries in llm_models_list to the current DEFAULT_SETTINGS
+      list (preserving user-added custom entries; openai_compat entries are dropped
+      even if custom — the provider no longer exists).
+    - Re-point any provider setting still on openai_compat to openai.
+    - Rename the dated claude-haiku-4-5-20251001 model setting values to the alias.
+    """
+    row = db.query(Setting).filter(Setting.key == "llm_models_list").first()
+    if row and row.value:
+        try:
+            current = json.loads(row.value)
+        except (ValueError, TypeError):
+            current = []
+        default_list = json.loads(DEFAULT_SETTINGS["llm_models_list"][0])
+        custom = [m for m in current
+                  if m.get("custom") and m.get("provider") != "openai_compat"]
+        merged = default_list + [m for m in custom
+                                 if not any(d["provider"] == m.get("provider")
+                                            and d["model"] == m.get("model")
+                                            for d in default_list)]
+        if merged != current:
+            row.value = json.dumps(merged)
+
+    provider_keys = ["llm_provider", "llm_fallback_provider", "email_llm_provider",
+                     "cv_tailor_llm_provider", "cover_letter_llm_provider"]
+    for key in provider_keys:
+        r = db.query(Setting).filter(Setting.key == key).first()
+        if r and r.value == "openai_compat":
+            r.value = "openai"
+
+    model_keys = ["llm_model", "llm_fallback_model", "email_llm_model",
+                  "cv_tailor_llm_model", "cover_letter_llm_model"]
+    for key in model_keys:
+        r = db.query(Setting).filter(Setting.key == key).first()
+        if r and r.value == "claude-haiku-4-5-20251001":
+            r.value = "claude-haiku-4-5"
+
     db.commit()
 
 
@@ -663,5 +723,7 @@ def run_seeds():
         seed_mock_resume(db)
         seed_persona(db)
         cleanup_removed_settings(db)
+        migrate_llm_settings(db)
+        migrate_cv_terminology(db)
     finally:
         db.close()

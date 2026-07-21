@@ -187,7 +187,7 @@ async def send_job_alert(data: dict):
         f"📍 {location_str}\n"
         f"💰 {salary_str}\n"
         f"{h1b_str}\n"
-        f"📋 CVs: {scores_str}\n"
+        f"📋 Resumes: {scores_str}\n"
     )
 
     if jd_flag_str:

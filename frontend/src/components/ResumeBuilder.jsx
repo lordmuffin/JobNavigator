@@ -1406,7 +1406,7 @@ export default function ResumeBuilder() {
                   ? <><Loader2 size={14} className="animate-spin" /> {tailorMode === 'copy' ? 'Copying...' : tailorMode === 'retailor' ? 'Re-tailoring...' : 'Tailoring...'}</>
                   : tailorMode === 'copy' ? 'Copy with Tracer Links'
                   : tailorMode === 'retailor' ? 'Re-tailor'
-                  : 'Generate Tailored CV'}
+                  : 'Generate Tailored Resume'}
               </button>
             </div>
           </div>

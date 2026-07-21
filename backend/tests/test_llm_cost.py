@@ -1,6 +1,6 @@
 """Tests for llm_cost.py — pricing calculations keyed by (provider, model)."""
 import pytest
-from backend.analyzer.llm_cost import calc_cost, get_pricing, FREE_PROVIDERS
+from backend.analyzer.llm_cost import calc_cost, get_pricing, FREE_PROVIDERS, PRICING
 
 
 def test_sonnet_pricing_no_cache():
@@ -27,16 +27,40 @@ def test_sonnet_pricing_with_cache_write():
     assert cost == pytest.approx(0.0105, rel=0.01)
 
 
-def test_haiku_pricing():
-    """Haiku 4.5 via claude_api: $1/MTok input, $5/MTok output."""
-    cost = calc_cost("claude_api", "claude-haiku-4-5-20251001",
+def test_sonnet_5_same_rate_card_as_4_6():
+    """Sonnet 5 sticker price matches Sonnet 4.6: $3/$15."""
+    p = get_pricing("claude_api", "claude-sonnet-5")
+    assert p["input_per_mtok"] == 3.0
+    assert p["output_per_mtok"] == 15.0
+
+
+@pytest.mark.parametrize("model", ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"])
+def test_opus_pricing(model):
+    """All current Opus models: $5/MTok input, $25/MTok output (NOT the old $15/$75)."""
+    cost = calc_cost("claude_api", model, input_tokens=1000, output_tokens=200)
+    assert cost == pytest.approx(0.010, rel=0.01)
+    p = get_pricing("claude_api", model)
+    assert p["cache_read_per_mtok"] == pytest.approx(0.50)
+    assert p["cache_write_per_mtok"] == pytest.approx(6.25)
+
+
+def test_fable_5_pricing():
+    """Fable 5: $10/MTok input, $50/MTok output."""
+    cost = calc_cost("claude_api", "claude-fable-5",
                      input_tokens=1000, output_tokens=200)
-    assert cost == pytest.approx(0.002, rel=0.01)
+    assert cost == pytest.approx(0.020, rel=0.01)
+
+
+def test_haiku_pricing_alias_and_dated_id():
+    """Haiku 4.5: $1/$5 — both the alias and legacy dated ID price identically."""
+    for model in ("claude-haiku-4-5", "claude-haiku-4-5-20251001"):
+        cost = calc_cost("claude_api", model, input_tokens=1000, output_tokens=200)
+        assert cost == pytest.approx(0.002, rel=0.01), model
 
 
 def test_claude_code_is_free():
     """claude_code is subscription — always $0 regardless of token counts."""
-    cost = calc_cost("claude_code", "claude-sonnet-4-6",
+    cost = calc_cost("claude_code", "claude-sonnet-5",
                      input_tokens=10000, output_tokens=5000,
                      cache_read_tokens=2000, cache_write_tokens=3000)
     assert cost == 0.0
@@ -59,6 +83,13 @@ def test_unknown_model_for_known_provider_returns_zero():
     cost = calc_cost("claude_api", "claude-opus-99",
                      input_tokens=1000, output_tokens=200)
     assert cost == 0.0
+
+
+def test_openai_compat_provider_removed():
+    """openai_compat was removed 2026-07 — no pricing, costs $0 (unknown provider)."""
+    assert "openai_compat" not in PRICING
+    assert get_pricing("openai_compat", "gpt-4o") is None
+    assert calc_cost("openai_compat", "gpt-4o", input_tokens=1000) == 0.0
 
 
 def test_get_pricing_known():

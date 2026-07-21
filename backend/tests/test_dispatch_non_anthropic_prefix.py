@@ -22,7 +22,7 @@ async def test_dispatch_concatenates_prefix_for_claude_code(monkeypatch):
     from backend.analyzer.llm_client import _dispatch
     await _dispatch(
         provider="claude_code", model="claude-sonnet-4-6",
-        api_key="", base_url="",
+        api_key="",
         prompt="JOB DESCRIPTION: Senior PM role",
         system="rubric scorer",
         max_tokens=600,
@@ -40,7 +40,7 @@ async def test_dispatch_concatenates_prefix_for_openai(monkeypatch):
     """openai provider receives cached_prefix + prompt combined."""
     captured = {}
 
-    async def fake_openai(prompt, system, model, api_key, max_tokens, base_url=None):
+    async def fake_openai(prompt, system, model, api_key, max_tokens):
         captured["prompt"] = prompt
         return {"text": "{}",
                 "usage": {"input_tokens": 10, "output_tokens": 5,
@@ -51,7 +51,7 @@ async def test_dispatch_concatenates_prefix_for_openai(monkeypatch):
     from backend.analyzer.llm_client import _dispatch
     await _dispatch(
         provider="openai", model="gpt-4o",
-        api_key="sk-test", base_url="",
+        api_key="sk-test",
         prompt="JD text",
         system="sys",
         max_tokens=600,
@@ -78,7 +78,7 @@ async def test_dispatch_no_prefix_passes_prompt_unchanged(monkeypatch):
     from backend.analyzer.llm_client import _dispatch
     await _dispatch(
         provider="claude_code", model="claude-sonnet-4-6",
-        api_key="", base_url="",
+        api_key="",
         prompt="bare prompt",
         system="sys",
         max_tokens=50,
@@ -105,7 +105,7 @@ async def test_dispatch_claude_api_still_uses_cache_control(monkeypatch):
     from backend.analyzer.llm_client import _dispatch
     await _dispatch(
         provider="claude_api", model="claude-sonnet-4-6",
-        api_key="sk", base_url="",
+        api_key="sk",
         prompt="JD only",
         system="sys",
         max_tokens=50,
@@ -115,3 +115,14 @@ async def test_dispatch_claude_api_still_uses_cache_control(monkeypatch):
     # For Anthropic, the prefix must stay separate (it becomes the cache_control block)
     assert captured["prompt"] == "JD only"
     assert captured["cached_prefix"] == "RUBRIC"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_openai_compat_removed():
+    """openai_compat provider was removed 2026-07 — _dispatch rejects it."""
+    from backend.analyzer.llm_client import _dispatch
+    with pytest.raises(ValueError, match="Unknown LLM provider"):
+        await _dispatch(
+            provider="openai_compat", model="anything/model",
+            api_key="", prompt="x", system="s", max_tokens=10,
+        )

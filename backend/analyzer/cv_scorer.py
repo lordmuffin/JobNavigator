@@ -275,7 +275,7 @@ async def _score_job_inner(job: Job, cv_texts: dict, db=None, depth="light", pre
         schema_row = settings_db.query(Setting).filter(Setting.key == schema_key).first()
         output_schema = schema_row.value if schema_row and schema_row.value else ""
         model_row = settings_db.query(Setting).filter(Setting.key == "llm_model").first()
-        model_for_log = model_row.value if model_row and model_row.value else "claude-sonnet-4-6"
+        model_for_log = model_row.value if model_row and model_row.value else "claude-sonnet-5"
         provider_row = settings_db.query(Setting).filter(Setting.key == "llm_provider").first()
         provider_for_log = provider_row.value if provider_row and provider_row.value else "claude_api"
         cache_row = settings_db.query(Setting).filter(Setting.key == "prompt_caching_enabled").first()
@@ -595,7 +595,7 @@ async def analyze_unscored_jobs(status: str = "saved"):
         logger.info(f"Analysis pipeline complete: {total_scored} jobs processed")
 
         from backend.activity import log_activity
-        log_activity("cv_score", f"CV scoring complete: {total_scored} jobs processed", db=db)
+        log_activity("cv_score", f"Resume scoring complete: {total_scored} jobs processed", db=db)
         db.commit()
 
     finally:

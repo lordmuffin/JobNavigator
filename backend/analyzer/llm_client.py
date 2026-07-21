@@ -21,13 +21,11 @@ async def call_llm(prompt: str, system: str, max_tokens: int = 1200,
     db = SessionLocal()
     try:
         provider = _get_setting(db, "llm_provider", "claude_api")
-        model = _get_setting(db, "llm_model", "claude-sonnet-4-6")
+        model = _get_setting(db, "llm_model", "claude-sonnet-5")
         api_key = _get_setting(db, "llm_api_key", "")
-        base_url = _get_setting(db, "llm_base_url", "")
         fallback_provider = _get_setting(db, "llm_fallback_provider", "")
         fallback_model = _get_setting(db, "llm_fallback_model", "")
         fb_api_key = _get_setting(db, "llm_fallback_api_key", "")
-        fb_base_url = _get_setting(db, "llm_fallback_base_url", "")
     finally:
         db.close()
 
@@ -40,7 +38,7 @@ async def call_llm(prompt: str, system: str, max_tokens: int = 1200,
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             logger.info(f"LLM call: provider={provider}, model={model}, attempt={attempt}/{MAX_ATTEMPTS}, caching={'on' if caching else 'off'}")
-            return await _dispatch(provider, model, api_key, base_url, prompt, system, max_tokens, cached_prefix=cached_prefix)
+            return await _dispatch(provider, model, api_key, prompt, system, max_tokens, cached_prefix=cached_prefix)
         except Exception as e:
             last_primary_err = e
             if attempt < MAX_ATTEMPTS:
@@ -57,7 +55,7 @@ async def call_llm(prompt: str, system: str, max_tokens: int = 1200,
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 logger.info(f"LLM fallback: provider={fallback_provider}, model={fallback_model}, attempt={attempt}/{MAX_ATTEMPTS}, caching={'on' if fb_caching else 'off'}")
-                return await _dispatch(fallback_provider, fallback_model, fb_api_key, fb_base_url, prompt, system, max_tokens, cached_prefix=cached_prefix)
+                return await _dispatch(fallback_provider, fallback_model, fb_api_key, prompt, system, max_tokens, cached_prefix=cached_prefix)
             except Exception as e:
                 last_fallback_err = e
                 if attempt < MAX_ATTEMPTS:
@@ -88,15 +86,14 @@ async def call_email_llm(prompt: str, system: str, max_tokens: int = 150) -> dic
         if not provider:
             provider = _get_setting(db, "llm_provider", "claude_api")
         if not model:
-            model = _get_setting(db, "llm_model", "claude-sonnet-4-6")
+            model = _get_setting(db, "llm_model", "claude-sonnet-5")
         if not api_key:
             api_key = _get_setting(db, "llm_api_key", "")
-        base_url = _get_setting(db, "llm_base_url", "")
     finally:
         db.close()
 
     logger.info(f"Email LLM call: provider={provider}, model={model}, max_tokens={max_tokens}")
-    return await _dispatch(provider, model, api_key, base_url, prompt, system, max_tokens)
+    return await _dispatch(provider, model, api_key, prompt, system, max_tokens)
 
 
 async def call_cv_tailor_llm(prompt: str, system: str, max_tokens: int = 3000) -> dict:
@@ -109,15 +106,14 @@ async def call_cv_tailor_llm(prompt: str, system: str, max_tokens: int = 3000) -
         if not provider:
             provider = _get_setting(db, "llm_provider", "claude_api")
         if not model:
-            model = _get_setting(db, "llm_model", "claude-sonnet-4-6")
+            model = _get_setting(db, "llm_model", "claude-sonnet-5")
         if not api_key:
             api_key = _get_setting(db, "llm_api_key", "")
-        base_url = _get_setting(db, "llm_base_url", "")
     finally:
         db.close()
 
     logger.info(f"CV tailor LLM call: provider={provider}, model={model}, max_tokens={max_tokens}")
-    return await _dispatch(provider, model, api_key, base_url, prompt, system, max_tokens)
+    return await _dispatch(provider, model, api_key, prompt, system, max_tokens)
 
 
 async def call_cover_letter_llm(prompt: str, system: str, max_tokens: int = 1500,
@@ -136,20 +132,19 @@ async def call_cover_letter_llm(prompt: str, system: str, max_tokens: int = 1500
         if not provider:
             provider = _get_setting(db, "llm_provider", "claude_api")
         if not model:
-            model = _get_setting(db, "llm_model", "claude-sonnet-4-6")
+            model = _get_setting(db, "llm_model", "claude-sonnet-5")
         if not api_key:
             api_key = _get_setting(db, "llm_api_key", "")
-        base_url = _get_setting(db, "llm_base_url", "")
     finally:
         db.close()
 
     logger.info(f"Cover-letter LLM call: provider={provider}, model={model}, max_tokens={max_tokens}, "
                 f"caching={'on' if cached_prefix and provider == 'claude_api' else 'off'}")
-    return await _dispatch(provider, model, api_key, base_url, prompt, system, max_tokens,
+    return await _dispatch(provider, model, api_key, prompt, system, max_tokens,
                            cached_prefix=cached_prefix)
 
 
-async def _dispatch(provider: str, model: str, api_key: str, base_url: str,
+async def _dispatch(provider: str, model: str, api_key: str,
                     prompt: str, system: str, max_tokens: int,
                     cached_prefix: str | None = None) -> dict:
     """Route to the correct provider. All providers return {text, usage} dict.
@@ -167,8 +162,6 @@ async def _dispatch(provider: str, model: str, api_key: str, base_url: str,
         return await _call_openai(combined, system, model, api_key, max_tokens)
     elif provider == "ollama":
         return await _call_ollama(combined, system, model, max_tokens)
-    elif provider == "openai_compat":
-        return await _call_openai(combined, system, model, api_key, max_tokens, base_url=base_url)
     else:
         raise ValueError(f"Unknown LLM provider: {provider}")
 
@@ -253,13 +246,10 @@ async def _call_claude_code(prompt: str, system: str, model: str, max_tokens: in
     }
 
 
-async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int, base_url: str = None) -> dict:
-    """Call OpenAI or OpenAI-compatible API. Returns {text, usage}."""
+async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int) -> dict:
+    """Call the OpenAI API. Returns {text, usage}."""
     from openai import AsyncOpenAI
-    kwargs = {"api_key": api_key}
-    if base_url:
-        kwargs["base_url"] = base_url
-    client = AsyncOpenAI(**kwargs)
+    client = AsyncOpenAI(api_key=api_key)
     response = await client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,

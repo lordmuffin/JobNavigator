@@ -222,17 +222,17 @@ export default function SettingsPage() {
       {/* AI Scoring Configuration */}
       <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-semibold text-lg dark:text-gray-100">CV AI Scoring Configuration</h2>
+          <h2 className="font-semibold text-lg dark:text-gray-100">Resume AI Scoring Configuration</h2>
           <div className="relative group">
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
               <p className="font-semibold mb-1.5">How scoring works</p>
-              <p className="mb-1.5"><b>Primary LLM</b> — provider + model used for all CV scoring. Claude API uses the API key from settings (or ANTHROPIC_API_KEY env var as fallback). Claude Code uses your subscription via OAuth. OpenAI/Ollama/OpenAI-compat use their respective keys.</p>
+              <p className="mb-1.5"><b>Primary LLM</b> — provider + model used for all Resume scoring. Claude API uses the API key from settings (or ANTHROPIC_API_KEY env var as fallback). Claude Code uses your subscription via OAuth. OpenAI/Ollama use their respective keys.</p>
               <p className="mb-1.5"><b>Fallback LLM</b> — if the primary fails (rate limit, error, timeout), scoring automatically retries with this provider. Each has its own API key. Leave provider as "None" to disable.</p>
               <p className="mb-1.5"><b>Add Custom Model</b> — models added here appear in both Primary and Fallback dropdowns for the selected provider.</p>
               <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
               <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
-              <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual CV names at runtime.</p>
+              <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
             </div>
           </div>
         </div>
@@ -256,7 +256,6 @@ export default function SettingsPage() {
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
                     <option value="ollama">Ollama (Local)</option>
-                    <option value="openai_compat">OpenAI Compatible (OpenRouter, etc.)</option>
                   </select>
                 </div>
                 <div>
@@ -283,16 +282,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              {provider === 'openai_compat' && (
-                <div className="mt-2">
-                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Base URL</label>
-                  <input type="text" autoComplete="off" value={settings.llm_base_url || ''}
-                    onChange={e => setSettings(p => ({...p, llm_base_url: e.target.value}))}
-                    onBlur={e => saveSetting('llm_base_url', e.target.value)}
-                    placeholder="https://openrouter.ai/api/v1"
-                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-                </div>
-              )}
             </div>
           )
         })()}
@@ -317,7 +306,6 @@ export default function SettingsPage() {
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
                     <option value="ollama">Ollama (Local)</option>
-                    <option value="openai_compat">OpenAI Compatible (OpenRouter, etc.)</option>
                   </select>
                 </div>
                 <div>
@@ -346,16 +334,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              {provider === 'openai_compat' && (
-                <div className="mt-2">
-                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Base URL</label>
-                  <input type="text" autoComplete="off" value={settings.llm_fallback_base_url || ''}
-                    onChange={e => setSettings(p => ({...p, llm_fallback_base_url: e.target.value}))}
-                    onBlur={e => saveSetting('llm_fallback_base_url', e.target.value)}
-                    placeholder="https://openrouter.ai/api/v1"
-                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-                </div>
-              )}
             </div>
           )
         })()}
@@ -363,7 +341,7 @@ export default function SettingsPage() {
         {(() => {
           const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
           const customModels = models.filter(m => m.custom)
-          const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama', openai_compat: 'OpenAI Compat' }
+          const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama' }
           return (
             <div className="mb-5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Custom Model</label>
@@ -374,7 +352,6 @@ export default function SettingsPage() {
                   <option value="claude_code">Claude Code</option>
                   <option value="openai">OpenAI</option>
                   <option value="ollama">Ollama</option>
-                  <option value="openai_compat">OpenAI Compat</option>
                 </select>
                 <input type="text" id="custom-model-name" placeholder="Add custom model..."
                   className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
@@ -425,7 +402,7 @@ export default function SettingsPage() {
             />
             Prompt Caching (Anthropic)
           </label>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Send the rubric + CVs + schema as a cached block so subsequent scoring calls reuse it at ~10× cheaper input tokens. Only active when provider is <code>claude_api</code>; no effect with <code>claude_code</code> or local providers. Disable as a rollback lever.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Send the rubric + Resumes + schema as a cached block so subsequent scoring calls reuse it at ~10× cheaper input tokens. Only active when provider is <code>claude_api</code>; no effect with <code>claude_code</code> or local providers. Disable as a rollback lever.</p>
         </div>
         <div className="mt-4">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Default Scoring Depth</label>
@@ -480,17 +457,17 @@ export default function SettingsPage() {
             placeholder="Full scoring output schema..."
           />
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">Placeholders available: {'{job_description}'}, {'{cv_text}'}, {'{cv_names}'}. CV_NAMES_HERE in output schemas is replaced with actual CV names at runtime.</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">Placeholders available: {'{job_description}'}, {'{cv_text}'}, {'{cv_names}'}. CV_NAMES_HERE in output schemas is replaced with actual Resume names at runtime.</p>
       </section>
 
-      {/* CV Tailoring */}
+      {/* Resume Tailoring */}
       <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-semibold text-lg dark:text-gray-100">CV Tailoring</h2>
+          <h2 className="font-semibold text-lg dark:text-gray-100">Resume Tailoring</h2>
           <div className="relative group">
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
-              <p className="font-semibold mb-1.5">CV Tailoring</p>
+              <p className="font-semibold mb-1.5">Resume Tailoring</p>
               <p className="mb-1">LLM reformulates your resume bullets with JD-specific keywords. Only changes bullets that benefit from alignment -- leaves well-suited ones unchanged.</p>
               <p className="mb-1">Also suggests 1-2 new bullets per role in STAR format, derived from your existing experience.</p>
               <p><b>Rule</b>: never invents skills or experience. Only reformulates what's already in your resume.</p>
@@ -509,7 +486,6 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
-              <option value="openai_compat">OpenAI Compatible</option>
             </select>
           </div>
           <div>
@@ -555,7 +531,7 @@ export default function SettingsPage() {
             rows={10}
             defaultValue={settings.cv_tailor_prompt || ''}
             onBlur={e => saveSetting('cv_tailor_prompt', e.target.value)}
-            placeholder="CV tailoring prompt template..."
+            placeholder="Resume tailoring prompt template..."
           />
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
             Used when tailoring from a base Resume. Placeholders: {'{resume_json}'}, {'{job_description}'}
@@ -622,7 +598,6 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
-              <option value="openai_compat">OpenAI Compatible</option>
             </select>
           </div>
           <div>
@@ -746,7 +721,6 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
-              <option value="openai_compat">OpenAI Compatible</option>
             </select>
           </div>
           <div>
@@ -1218,7 +1192,7 @@ export default function SettingsPage() {
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-72 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
               <p className="font-semibold mb-1.5">Manual Triggers</p>
-              <p>Run scraping, email checks, H-1B refresh, CV analysis, and database backups on demand. These bypass scheduler intervals and run immediately.</p>
+              <p>Run scraping, email checks, H-1B refresh, Resume analysis, and database backups on demand. These bypass scheduler intervals and run immediately.</p>
             </div>
           </div>
         </div>
