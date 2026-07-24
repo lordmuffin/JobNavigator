@@ -47,6 +47,7 @@ DEFAULT_SETTINGS = {
     "llm_models_list": (json.dumps([
         {"provider": "claude_api", "model": "claude-sonnet-5"},
         {"provider": "claude_api", "model": "claude-sonnet-4-6"},
+        {"provider": "claude_api", "model": "claude-opus-5"},
         {"provider": "claude_api", "model": "claude-opus-4-8"},
         {"provider": "claude_api", "model": "claude-opus-4-7"},
         {"provider": "claude_api", "model": "claude-opus-4-6"},
@@ -54,6 +55,7 @@ DEFAULT_SETTINGS = {
         {"provider": "claude_api", "model": "claude-fable-5"},
         {"provider": "claude_code", "model": "claude-sonnet-5"},
         {"provider": "claude_code", "model": "claude-sonnet-4-6"},
+        {"provider": "claude_code", "model": "claude-opus-5"},
         {"provider": "claude_code", "model": "claude-opus-4-8"},
         {"provider": "claude_code", "model": "claude-opus-4-7"},
         {"provider": "claude_code", "model": "claude-opus-4-6"},

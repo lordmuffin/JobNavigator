@@ -16,7 +16,7 @@ _CLAUDE_FABLE_5 = {
     "cache_read_per_mtok": 1.00,
     "cache_write_per_mtok": 12.50,
 }
-_CLAUDE_OPUS = {  # Opus 4.6 / 4.7 / 4.8 share the $5/$25 rate card
+_CLAUDE_OPUS = {  # Opus 5 / 4.8 / 4.7 / 4.6 share the $5/$25 rate card
     "input_per_mtok": 5.0,
     "output_per_mtok": 25.0,
     "cache_read_per_mtok": 0.50,
@@ -39,6 +39,7 @@ _CLAUDE_HAIKU = {
 PRICING: dict[str, dict[str, dict]] = {
     "claude_api": {
         "claude-fable-5": _CLAUDE_FABLE_5,
+        "claude-opus-5": _CLAUDE_OPUS,
         "claude-opus-4-8": _CLAUDE_OPUS,
         "claude-opus-4-7": _CLAUDE_OPUS,
         "claude-opus-4-6": _CLAUDE_OPUS,

@@ -34,7 +34,7 @@ def test_sonnet_5_same_rate_card_as_4_6():
     assert p["output_per_mtok"] == 15.0
 
 
-@pytest.mark.parametrize("model", ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"])
+@pytest.mark.parametrize("model", ["claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"])
 def test_opus_pricing(model):
     """All current Opus models: $5/MTok input, $25/MTok output (NOT the old $15/$75)."""
     cost = calc_cost("claude_api", model, input_tokens=1000, output_tokens=200)
