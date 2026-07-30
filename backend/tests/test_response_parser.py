@@ -91,3 +91,46 @@ def test_classify_confidence_scales_with_signal_count():
     assert many_signals["classification"] == "positive"
     assert many_signals["confidence"] >= one_signal["confidence"]
     assert many_signals["confidence"] <= 0.95
+
+
+def test_acknowledgment_with_positive_boilerplate_is_auto_reply():
+    """The Amazon bug: a 'thanks for applying' acknowledgment whose boilerplate contains
+    weak-positive phrases ('excited to', 'connect with you', 'next steps') must NOT be
+    read as a real advance. With no *strong* scheduling/invitation signal, it's auto_reply.
+    """
+    from backend.email_monitor.response_parser import classify_email
+    result = classify_email(
+        subject="Thanks for applying to Amazon",
+        body=(
+            "Thanks for applying! We're excited to review your background and will "
+            "connect with you about next steps if there is a match."
+        ),
+    )
+    assert result["classification"] == "auto_reply"
+
+
+def test_genuine_advance_stays_positive_despite_applying_phrase():
+    """Guards the ordering: a real interview invite that also opens with 'thank you for
+    applying' must still classify as positive — the strong signal ('schedule a call',
+    'availability for') wins over the acknowledgment phrase.
+    """
+    from backend.email_monitor.response_parser import classify_email
+    result = classify_email(
+        subject="Interview scheduling — PM role",
+        body=(
+            "Thank you for applying. We'd like to schedule a call to discuss the role. "
+            "Please share your availability for next week."
+        ),
+    )
+    assert result["classification"] == "positive"
+
+
+def test_thanks_for_applying_variants_are_auto_reply():
+    """Both 'thanks for applying' and 'thanks for your application' are acknowledgments."""
+    from backend.email_monitor.response_parser import classify_email
+    for body in (
+        "Thanks for applying to the Product Manager role.",
+        "Thanks for your application. Our team will review it shortly.",
+    ):
+        result = classify_email(subject="Application", body=body)
+        assert result["classification"] == "auto_reply", body

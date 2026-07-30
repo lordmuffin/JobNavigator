@@ -3,19 +3,32 @@ import logging
 
 logger = logging.getLogger("jobnavigator.email_parser")
 
-POSITIVE_PHRASES = [
+# STRONG positive = an unambiguous advance (scheduling / invitation / offer). These
+# essentially never appear in a "thanks for applying" acknowledgment.
+STRONG_POSITIVE_PHRASES = [
     "would like to schedule",
-    "next steps",
-    "move forward",
     "like to invite",
+    "would like to invite",
     "schedule a call",
     "schedule an interview",
+    "schedule a time",
+    "set up a time",
+    "set up a call",
+    "availability for",
+    "your availability",
+    "preliminary phone screen",
+    "phone screen",
     "pleased to inform",
+]
+
+# WEAK positive = friendly boilerplate that acknowledgment emails ALSO contain
+# ("we're excited to review", "we'll connect with you about next steps"). On its own
+# this is NOT enough to call an email a real advance.
+WEAK_POSITIVE_PHRASES = [
+    "next steps",
+    "move forward",
     "we'd like to",
     "we would like to",
-    "preliminary phone screen",
-    "set up a time",
-    "availability for",
     "connect with you",
     "meet with",
     "excited to",
@@ -40,9 +53,14 @@ REJECTION_PHRASES = [
 
 AUTO_REPLY_PHRASES = [
     "thank you for applying",
+    "thanks for applying",
+    "thank you for your application",
+    "thanks for your application",
     "we received your application",
+    "received your application",
     "application has been received",
     "thank you for your interest",
+    "thanks for your interest",
     "confirming receipt",
     "application received",
     "auto-reply",
@@ -59,25 +77,34 @@ def classify_email(subject: str, body: str) -> dict:
     combined = f"{subject} {body}".lower()
 
     # Count all signals first
-    positive_count = sum(1 for p in POSITIVE_PHRASES if p in combined)
+    strong_positive = sum(1 for p in STRONG_POSITIVE_PHRASES if p in combined)
+    weak_positive = sum(1 for p in WEAK_POSITIVE_PHRASES if p in combined)
     rejection_count = sum(1 for p in REJECTION_PHRASES if p in combined)
     auto_reply_count = sum(1 for p in AUTO_REPLY_PHRASES if p in combined)
 
-    # Rejection/positive take priority over auto-reply (rejections often contain "thank you for your interest")
-    if rejection_count > 0 and positive_count == 0:
+    # Rejection wins over everything except a co-present strong advance (rejections
+    # often contain boilerplate like "thank you for your interest").
+    if rejection_count > 0 and strong_positive == 0:
         confidence = min(0.5 + rejection_count * 0.15, 0.95)
         return {"classification": "rejection", "confidence": confidence}
 
-    if positive_count > 0 and rejection_count == 0:
-        confidence = min(0.5 + positive_count * 0.15, 0.95)
+    # A genuine advance requires a STRONG signal (scheduling / invitation / offer).
+    if strong_positive > 0 and rejection_count == 0:
+        confidence = min(0.5 + strong_positive * 0.15, 0.95)
         return {"classification": "positive", "confidence": confidence}
 
-    if positive_count > 0 and rejection_count > 0:
+    if strong_positive > 0 and rejection_count > 0:
         return {"classification": "ambiguous", "confidence": 0.4}
 
-    # Auto-reply only if no rejection/positive signals
+    # No strong signal: an acknowledgment ("thanks for applying", "application received")
+    # is an auto-reply EVEN IF it contains friendly weak-positive boilerplate. This is the
+    # Amazon case — polite "we're excited to ... connect with you" must not read as an interview.
     if auto_reply_count > 0:
         return {"classification": "auto_reply", "confidence": 0.9}
+
+    # Only weak boilerplate and nothing else — too soft to auto-act on; let the LLM decide.
+    if weak_positive > 0:
+        return {"classification": "ambiguous", "confidence": 0.35}
 
     return {"classification": "ambiguous", "confidence": 0.2}
 

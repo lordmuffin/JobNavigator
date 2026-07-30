@@ -3,6 +3,7 @@ import asyncio
 import base64
 import json
 import logging
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -304,9 +305,23 @@ async def check_emails():
                         # Find matched application
                         match_idx = llm_result.get("match_index")
                         matched_app = None
+                        matched_company = ""
                         if match_idx and 1 <= match_idx <= len(active_apps):
                             app_info = active_apps[match_idx - 1]
+                            matched_company = app_info.get("company", "")
                             matched_app = db.query(Application).get(app_info["id"])
+
+                        # Sender verification: never apply an email to an application whose
+                        # company the email did not actually come from (guards against the
+                        # LLM force-matching, e.g. an Amazon email onto a Kpler application).
+                        if matched_app and not _email_matches_company(
+                            matched_company, from_header, subject, body, sender_domain
+                        ):
+                            logger.warning(
+                                f"Email LLM matched app {matched_app.id} ({matched_company!r}) but "
+                                f"sender {sender_domain!r} doesn't correspond — skipping status change"
+                            )
+                            matched_app = None
 
                         if matched_app:
                             _apply_llm_result_to_app(db, matched_app, llm_result, body, subject)
@@ -385,38 +400,72 @@ def _extract_mime(payload: dict, mime_type: str) -> str:
     return ""
 
 
+# Common legal/entity suffixes and filler words dropped when deriving a company's
+# identifying tokens, so "Kpler Technologies Inc." matches on "kpler".
+_COMPANY_SUFFIXES = {
+    "inc", "llc", "ltd", "limited", "gmbh", "ag", "sa", "plc", "co", "corp",
+    "corporation", "company", "technologies", "technology", "labs", "group",
+    "holdings", "international", "the",
+}
+
+
+def _company_tokens(company: str) -> list:
+    """Identifying tokens for a company name (drop entity suffixes + very short tokens)."""
+    toks = [
+        t for t in re.findall(r"[a-z0-9]+", (company or "").lower())
+        if t not in _COMPANY_SUFFIXES and len(t) >= 3
+    ]
+    if not toks:  # name was all suffixes / short tokens — fall back to whatever we have
+        toks = [t for t in re.findall(r"[a-z0-9]+", (company or "").lower()) if t]
+    return toks
+
+
+def _email_matches_company(company: str, from_header: str, subject: str,
+                           body: str, sender_domain: str) -> bool:
+    """True iff an email plausibly belongs to `company`.
+
+    The From header, sender domain, and subject are authoritative (that's who actually
+    sent it). The body is only a weak fallback and requires the FULL company name. Job
+    title is deliberately never used — generic titles like "Product Manager" are shared
+    across companies and caused emails to be applied to the wrong application.
+    """
+    if not company or not company.strip():
+        return False
+    sender_text = f"{from_header or ''} {subject or ''}".lower()
+    domain_slug = re.sub(r"[^a-z0-9]", "", (sender_domain or "").lower())
+    for t in _company_tokens(company):
+        # Word-boundary match in the human-readable sender/subject (so "Box" does not
+        # match inside "inbox"), or a substring match in the collapsed sender domain.
+        if re.search(rf"\b{re.escape(t)}\b", sender_text):
+            return True
+        if len(t) >= 4 and t in domain_slug:
+            return True
+    full = company.lower().strip()
+    return full in (body or "").lower()
+
+
 def _match_email_to_application(db, from_header: str, subject: str, body: str, sender_domain: str):
-    """Try to match an email to an existing application."""
-    # Get active applications
+    """Match an email to an existing active application, anchored on the sender.
+
+    Returns the application whose company the email is actually from, or None. A match
+    where the company only appears in the body is used only as a fallback, after every
+    app has been checked for a stronger sender/subject match.
+    """
     active_statuses = ["applied", "interview"]
     apps = db.query(Application).filter(Application.status.in_(active_statuses)).all()
 
-    subject_lower = subject.lower()
-    from_lower = from_header.lower()
-    body_lower = body.lower()
-    sender_slug = sender_domain.replace(".com", "").replace(".", "")
-
+    body_lower = (body or "").lower()
+    body_fallback = None
     for app in apps:
         job = app.job
         if not job:
             continue
-
-        # Match by company name in subject, from header, or body
-        company_lower = (job.company or "").lower()
-        if company_lower and (
-            company_lower in subject_lower or
-            company_lower in from_lower or
-            company_lower in body_lower or
-            sender_slug in company_lower.replace(" ", "").lower()
-        ):
+        company = job.company or ""
+        # Strong: the company is named in the sender / subject.
+        if _email_matches_company(company, from_header, subject, "", sender_domain):
             return app
-
-        # Match by job title in subject or body
-        title_lower = (job.title or "").lower()
-        if title_lower and (
-            title_lower in subject_lower or
-            title_lower in body_lower
-        ):
-            return app
-
-    return None
+        # Weak: the full company name appears only in the body — remember it, but keep
+        # scanning in case a later app is a stronger (sender-based) match.
+        if body_fallback is None and company.strip() and company.lower().strip() in body_lower:
+            body_fallback = app
+    return body_fallback
