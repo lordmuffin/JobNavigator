@@ -344,9 +344,18 @@ def _rewrite_urls_with_tracers(json_data: dict, resume_id: str, db,
         label = item.get("text", f"Link {i+1}")
         dest_url = url if url.startswith("http") else f"https://{url}"
         # Suffix for per-link distinction in job_id modes (user stub or first 3 chars)
-        label_suffix = item.get("stub") or label.lower()[:3]
+        stub = item.get("stub")
+        label_suffix = stub or label.lower()[:3]
 
-        token = f"{job_short_id}{label_suffix}" if job_short_id else None
+        jobid_style = url_style in ("path_jobid", "param_jobid")
+        if job_short_id:
+            token = f"{job_short_id}{label_suffix}"
+        elif jobid_style and stub:
+            # Base resume (no job → no short_id) with an explicit stub: reserve "0"
+            # as the no-job prefix so the token is 0{stub} instead of random.
+            token = f"0{stub}"
+        else:
+            token = None
 
         # Find or create tracer link for this owner + destination
         existing = db.query(TracerLink).filter(

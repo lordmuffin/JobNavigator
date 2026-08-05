@@ -218,3 +218,50 @@ def test_tracer_repoint_clears_other_owner(test_db):
     assert (link.resume_id is None) != (link.cover_letter_id is None)
     assert str(link.cover_letter_id) == str(cl.id)
     assert link.resume_id is None
+
+
+def test_base_resume_stub_uses_zero_prefix(test_db):
+    """A base resume has no job_id, so there's no job short_id to namespace the token.
+    In a *_jobid style, when the contact item provides an explicit stub, the token is
+    '0{stub}' instead of a random string."""
+    import uuid
+    from backend.models.db import Setting, Resume, TracerLink
+    from backend.api.routes_resumes import _rewrite_urls_with_tracers
+
+    test_db.add(Setting(key="tracer_links_enabled", value="true"))
+    test_db.add(Setting(key="tracer_links_base_url", value="https://t.example.com"))
+    test_db.add(Setting(key="tracer_links_url_style", value="path_jobid"))
+    resume = Resume(id=uuid.uuid4(), name="Base", is_base=True, job_id=None,
+                    json_data={"header": {"name": "V", "contact_items": [
+                        {"text": "LinkedIn", "url": "linkedin.com/in/v", "stub": "li"}]}})
+    test_db.add(resume)
+    test_db.commit()
+
+    result = _rewrite_urls_with_tracers(resume.json_data, str(resume.id), test_db)
+
+    link = test_db.query(TracerLink).filter(TracerLink.resume_id == resume.id).first()
+    assert link is not None
+    assert link.token == "0li"
+    assert result["header"]["contact_items"][0]["url"] == "https://t.example.com/cv/0li"
+
+
+def test_base_resume_without_stub_stays_random(test_db):
+    """No stub and no job short_id → fall back to a random 6-char token (not '0…')."""
+    import uuid
+    from backend.models.db import Setting, Resume, TracerLink
+    from backend.api.routes_resumes import _rewrite_urls_with_tracers
+
+    test_db.add(Setting(key="tracer_links_enabled", value="true"))
+    test_db.add(Setting(key="tracer_links_base_url", value="https://t.example.com"))
+    test_db.add(Setting(key="tracer_links_url_style", value="path_jobid"))
+    resume = Resume(id=uuid.uuid4(), name="Base", is_base=True, job_id=None,
+                    json_data={"header": {"name": "V", "contact_items": [
+                        {"text": "Portfolio", "url": "example.com/v"}]}})
+    test_db.add(resume)
+    test_db.commit()
+
+    _rewrite_urls_with_tracers(resume.json_data, str(resume.id), test_db)
+
+    link = test_db.query(TracerLink).filter(TracerLink.resume_id == resume.id).first()
+    assert link is not None
+    assert len(link.token) == 6
