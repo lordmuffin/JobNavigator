@@ -103,7 +103,7 @@ app.add_middleware(
 import hmac as _hmac_mw
 
 # Paths that NEVER require auth (exact or prefix match)
-_PUBLIC_PREFIXES = ("/health", "/docs", "/openapi.json", "/redoc", "/cv/", "/api/telegram/webhook", "/api/auth/set-session", "/api/auth/verify", "/api/auth/logout")
+_PUBLIC_PREFIXES = ("/health", "/docs", "/openapi.json", "/redoc", "/cv", "/api/telegram/webhook", "/api/auth/set-session", "/api/auth/verify", "/api/auth/logout")
 
 @app.middleware("http")
 async def api_key_auth(request: Request, call_next):
@@ -118,6 +118,9 @@ async def api_key_auth(request: Request, call_next):
         return await call_next(request)
     # docs subpaths
     if path.startswith("/docs"):
+        return await call_next(request)
+    # Param-style tracer links (?cv=token on root) are public, same as /cv/{token}.
+    if path == "/" and request.query_params.get("cv"):
         return await call_next(request)
 
     # Accept either X-API-Key header (API clients, extension) OR jn_session cookie (browser)
@@ -217,9 +220,12 @@ def health_check():
     return {"status": "ok", "service": "JobNavigator"}
 
 
-@app.get("/cv/{token}", tags=["tracer"], summary="Tracer link redirect")
-async def tracer_redirect(token: str, request: Request):
-    """Public redirect endpoint for tracer links. Logs click, then 302 redirects."""
+async def _tracer_click_and_redirect(token: str, request: Request):
+    """Log the click (best-effort) and 302 to the link's destination.
+
+    Shared by both link shapes: path style (/cv/{token}) and param style
+    (/?cv={token}). Any resume/cover-letter exported in either format resolves here.
+    """
     import re
     import hashlib
     from backend.models.db import TracerLink, TracerClickEvent
@@ -303,6 +309,22 @@ async def tracer_redirect(token: str, request: Request):
 
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=destination, status_code=302)
+
+
+@app.get("/cv/{token}", tags=["tracer"], summary="Tracer link redirect (path style)")
+async def tracer_redirect(token: str, request: Request):
+    """Path-style tracer link: /cv/{token}. Logs click, then 302 redirects."""
+    return await _tracer_click_and_redirect(token, request)
+
+
+@app.get("/", include_in_schema=False)
+async def tracer_redirect_param(request: Request):
+    """Param-style tracer link: /?cv={token}. Only tracer requests reach the backend
+    root (Caddy routes bare / to the frontend); without ?cv it's a 404."""
+    token = request.query_params.get("cv")
+    if not token:
+        raise HTTPException(404, "Not found")
+    return await _tracer_click_and_redirect(token, request)
 
 
 # ── Trigger endpoints (non-blocking, return 202) ────────────────────────────
