@@ -865,6 +865,68 @@ def get_in_flight(job_ids: str = None):
     return result
 
 
+@app.get("/api/monitor/finished", tags=["monitor"], summary="Recently finished per-job runs")
+def get_finished(job_ids: str = None, since: str = None, limit: int = 200):
+    """Return recently finished (completed/failed) runs for the given jobs, with status.
+
+    The dashboard uses this to resolve OK/NOK for an op that just left
+    /monitor/in-flight — the run's ACTUAL status, not inferred from job fields
+    (which is unreliable for re-runs, e.g. a failed re-tailor still leaves an old
+    tailored_resume_id in place).
+    """
+    import uuid as _uuid
+    from datetime import datetime as _dt, timezone as _tz
+
+    wanted = None
+    if job_ids:
+        wanted = []
+        for s in job_ids.split(","):
+            s = s.strip()
+            if not s:
+                continue
+            try:
+                wanted.append(_uuid.UUID(s))
+            except ValueError:
+                continue
+        if not wanted:
+            return []
+
+    # `since` is epoch milliseconds (URL-safe; avoids the '+' in ISO offsets
+    # decoding to a space in a query string). Runs finished at/after it are kept.
+    since_dt = None
+    if since:
+        try:
+            since_dt = _dt.fromtimestamp(int(since) / 1000, tz=_tz.utc)
+        except (ValueError, TypeError, OverflowError):
+            since_dt = None
+
+    def _aware(dt):
+        # Normalize so naive (SQLite) and aware (Postgres) values compare cleanly.
+        return dt.replace(tzinfo=_tz.utc) if dt.tzinfo is None else dt
+
+    db = SessionLocal()
+    try:
+        q = db.query(JobRun).filter(
+            JobRun.status.in_(("completed", "failed")),
+            JobRun.target_job_id.isnot(None),
+        )
+        if wanted is not None:
+            q = q.filter(JobRun.target_job_id.in_(wanted))
+        runs = q.order_by(JobRun.finished_at.desc()).limit(limit).all()
+        return [
+            {
+                "target_job_id": str(r.target_job_id),
+                "job_type": r.job_type,
+                "status": r.status,
+                "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            }
+            for r in runs
+            if since_dt is None or (r.finished_at is not None and _aware(r.finished_at) >= since_dt)
+        ]
+    finally:
+        db.close()
+
+
 @app.get("/api/monitor/history", tags=["monitor"], summary="Run history")
 def get_run_history(limit: int = 30, job_type: str = None, status: str = None):
     """Return recent job run history, newest first."""
