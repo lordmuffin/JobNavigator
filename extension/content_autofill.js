@@ -13,9 +13,10 @@
   let currentField = null;
 
   const isAnswerField = (el) =>
-    el && ((el.tagName === 'TEXTAREA') ||
-           (el.tagName === 'INPUT' && el.type === 'text' && (el.maxLength > 60 || el.maxLength === -1)) ||
-           el.isContentEditable);
+    el && !el.readOnly && !el.disabled &&
+    ((el.tagName === 'TEXTAREA') ||
+     (el.tagName === 'INPUT' && el.type === 'text' && (el.maxLength > 60 || el.maxLength === -1)) ||
+     el.isContentEditable);
 
   function questionFor(el) {
     // label[for=id] -> aria-labelledby -> aria-label -> placeholder -> nearest preceding text
@@ -70,6 +71,7 @@
 
   function showButton(el) {
     removeButton();
+    removePopover();
     currentField = el;
     host = document.createElement('div');
     host.style.cssText = 'position:absolute;z-index:2147483647;';
@@ -92,16 +94,17 @@
   }
 
   async function onGenerate(el) {
+    const fieldMax = maxCharsFor(el);
     const payload = {
       type: 'autofill_generate',
       question: questionFor(el),
       company: pageCompany(),
       position: pagePosition(),
-      max_chars: maxCharsFor(el),
+      max_chars: fieldMax,
     };
     const resp = await chrome.runtime.sendMessage(payload);
     if (resp && resp.answer) {
-      showPopover(el, resp.answer, { question: payload.question, max: payload.max_chars, payload });
+      showPopover(el, resp.answer, { question: payload.question, max: payload.max_chars, payload, fieldMax });
     } else {
       alert('Autofill failed: ' + ((resp && resp.error) || 'unknown'));
     }
@@ -110,9 +113,20 @@
   function showPopover(el, answer, ctx) {
     removeButton();
     removePopover();
+    // While the popover is open, the field is no longer "current" for the
+    // scroll handler's button-repositioning logic - otherwise scrolling would
+    // spawn a second floating button next to the open popover.
+    currentField = null;
     const pop = document.createElement('div');
     pop.style.cssText = 'position:absolute;z-index:2147483647;';
     const root = pop.attachShadow({ mode: 'open' });
+    const lengthOptions = [];
+    if (ctx.fieldMax) lengthOptions.push({ value: 'field', label: 'Field limit' });
+    lengthOptions.push({ value: 'default', label: 'Settings default' });
+    lengthOptions.push({ value: '250', label: '~250' });
+    lengthOptions.push({ value: '600', label: '~600' });
+    lengthOptions.push({ value: '1200', label: '~1200' });
+    const initialLen = ctx.fieldMax ? 'field' : 'default';
     root.innerHTML = `
       <style>
         .card{width:360px;max-width:80vw;background:#111827;color:#fff;border-radius:10px;
@@ -121,12 +135,17 @@
                  border-radius:6px;padding:8px;box-sizing:border-box;resize:vertical}
         .row{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
         button{border:0;border-radius:6px;padding:6px 10px;cursor:pointer;font-weight:600}
+        select{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:6px;
+               padding:5px 6px;font:13px system-ui}
         .primary{background:#3B82F6;color:#fff}.ghost{background:#374151;color:#fff}
         .count{margin-left:auto;color:#9CA3AF}
       </style>
       <div class="card">
         <textarea id="ans">${answer.replace(/</g, '&lt;')}</textarea>
         <div class="row">
+          <select id="len" title="Answer length">
+            ${lengthOptions.map(o => `<option value="${o.value}"${o.value === initialLen ? ' selected' : ''}>${o.label}</option>`).join('')}
+          </select>
           <button class="primary" id="insert">Insert</button>
           <button class="ghost" id="copy">Copy</button>
           <button class="ghost" id="save">Save to bank</button>
@@ -142,8 +161,15 @@
 
     const ta = root.getElementById('ans');
     const count = root.getElementById('count');
+    const lenSel = root.getElementById('len');
     const upd = () => { count.textContent = ctx.max ? `${ta.value.length}/${ctx.max}` : `${ta.value.length}`; };
     ta.addEventListener('input', upd); upd();
+
+    const resolveMaxChars = (val) => {
+      if (val === 'field') return ctx.fieldMax;
+      if (val === 'default') return null;
+      return parseInt(val, 10);
+    };
 
     const close = () => { pop.remove(); if (popoverHost === pop) popoverHost = null; };
     root.getElementById('insert').onclick = () => { fillField(el, ta.value); close(); };
@@ -156,6 +182,14 @@
       const resp = await chrome.runtime.sendMessage(ctx.payload);
       if (resp && resp.answer) { ta.value = resp.answer; upd(); }
     };
+    lenSel.addEventListener('change', async () => {
+      const chosen = resolveMaxChars(lenSel.value);
+      ctx.max = chosen;
+      ctx.payload.max_chars = chosen;
+      upd();
+      const resp = await chrome.runtime.sendMessage(ctx.payload);
+      if (resp && resp.answer) { ta.value = resp.answer; upd(); }
+    });
     document.addEventListener('mousedown', function onOut(ev) {
       if (!pop.contains(ev.target)) { close(); document.removeEventListener('mousedown', onOut); }
     });
@@ -179,10 +213,16 @@
     if (isAnswerField(e.target)) showButton(e.target);
   }, true);
   document.addEventListener('focusout', () => {
-    // keep the button if focus moved into our shadow host
+    // keep the button/popover if focus moved into their own shadow host
     setTimeout(() => {
-      if (document.activeElement !== currentField && !host?.contains(document.activeElement)) removeButton();
+      const active = document.activeElement;
+      if (host && active !== currentField && !host.contains(active)) removeButton();
+      if (popoverHost && active !== currentField && !popoverHost.contains(active)) removePopover();
     }, 150);
   }, true);
+  // Scroll only repositions the button, and only while no popover is open
+  // (the popover's field is cleared from currentField above, so this is a
+  // no-op then - re-showing the button on scroll would otherwise spawn a
+  // second floating widget next to the open popover).
   window.addEventListener('scroll', () => { if (currentField) showButton(currentField); }, true);
 })();
