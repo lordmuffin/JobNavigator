@@ -169,13 +169,13 @@ DEFAULT_SETTINGS = {
         "Write like a real person: specific, direct, plain. No corporate filler or buzzwords (no 'leverage', "
         "'passionate', 'excited to', 'thrilled', 'synergy', 'mission-driven'), no generic mission-statement lines, "
         "no restating the question. ASCII only, no em-dashes. Keep it at or under {max_chars} characters.\n\n"
-        "Output ONLY the final answer text. Do NOT include any preamble, reasoning, meta-commentary, or notes "
-        "about what is or isn't in the profile. Never begin with 'I need to', 'Here is', 'As a', or similar.\n\n"
+        "Put the finished answer (first person, no preamble, no meta-commentary) inside the JSON below, and put "
+        "NOTHING outside it — no reasoning, no notes about the profile, no 'I'll write...' lines.\n\n"
         "CANDIDATE PROFILE:\n{persona}\n\n"
         "Q&A BANK (reusable prior answers):\n{qa_bank}\n\n"
         "TARGET: {company} - {position}\n"
         "QUESTION: {question}\n\n"
-        "Answer:",
+        "Return ONLY this JSON:\n{\"answer\": \"...\"}",
         "Editable application-autofill LLM prompt. Placeholders: {persona}, {qa_bank}, {company}, {position}, {question}, {max_chars}."
     ),
 }

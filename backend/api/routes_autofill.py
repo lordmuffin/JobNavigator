@@ -82,14 +82,28 @@ async def autofill_answer(body: dict):
               .replace("{max_chars}", str(max_chars)))
     system = "You write concise, truthful first-person job-application answers grounded only in the provided profile."
 
-    # token budget: ~ chars/3 + headroom
-    max_tokens = max(120, min(800, max_chars // 2 + 120))
+    # token budget: room for the answer + JSON wrapper + any (discarded) preamble
+    max_tokens = max(256, min(1024, max_chars // 3 + 256))
     try:
         async with track_llm_call("autofill", provider, model) as tracker:
             resp = await call_autofill_llm(suffix, system, max_tokens=max_tokens,
                                            cached_prefix=cached_prefix)
             tracker.usage = resp.get("usage", tracker.usage)
-        answer = (resp.get("text") or "").strip().strip('"')
+        raw = (resp.get("text") or "").strip()
+        # The model returns {"answer": "..."}; extract it so any leaked reasoning /
+        # preamble outside the JSON is discarded. Fall back to the raw text.
+        answer = raw
+        try:
+            import json as _json
+            import re as _re
+            m = _re.search(r'\{[\s\S]*\}', raw)
+            if m:
+                parsed = _json.loads(m.group(0))
+                if isinstance(parsed, dict) and parsed.get("answer"):
+                    answer = str(parsed["answer"])
+        except Exception:
+            pass
+        answer = answer.strip().strip('"')
     except Exception as e:
         logger.error(f"autofill generation failed: {e}")
         raise HTTPException(502, "autofill generation failed") from e
