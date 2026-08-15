@@ -7,7 +7,6 @@
   const { autofillEnabled } = await chrome.storage.sync.get(['autofillEnabled']);
   if (!autofillEnabled) return;
 
-  const ICON_URL = chrome.runtime.getURL('icons/icon48.png');
   let host = null;      // shadow host for the button
   let popoverHost = null; // shadow host for the review popover
   let currentField = null;
@@ -80,9 +79,8 @@
       <style>
         .btn{width:26px;height:26px;border-radius:6px;border:1px solid #3B82F6;background:#fff;
              cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2)}
-        .btn img{width:16px;height:16px}
       </style>
-      <button class="btn" title="Fill with JobNavigator"><img src="${ICON_URL}"></button>`;
+      <button class="btn" title="Fill with JobNavigator"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg></button>`;
     const r = el.getBoundingClientRect();
     host.style.top = `${window.scrollY + r.top + 4}px`;
     host.style.left = `${window.scrollX + r.right - 30}px`;
@@ -164,6 +162,10 @@
     const lenSel = root.getElementById('len');
     const upd = () => { count.textContent = ctx.max ? `${ta.value.length}/${ctx.max}` : `${ta.value.length}`; };
     ta.addEventListener('input', upd); upd();
+    // Focus the textarea so the popover keeps focus — otherwise focus falls to
+    // <body> (the button that opened it was just removed) and the focusout
+    // handler tears the popover down ~150ms later.
+    ta.focus();
 
     const resolveMaxChars = (val) => {
       if (val === 'field') return ctx.fieldMax;
