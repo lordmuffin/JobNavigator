@@ -1,9 +1,12 @@
 import pytest
 from backend.models.db import Setting, Persona
+from backend.seed import DEFAULT_SETTINGS
 
 
 def _seed(test_db):
     test_db.add(Setting(key="dashboard_api_key", value=""))
+    test_db.add(Setting(key="autofill_prompt", value=DEFAULT_SETTINGS["autofill_prompt"][0]))
+    test_db.add(Setting(key="autofill_default_length", value=DEFAULT_SETTINGS["autofill_default_length"][0]))
     test_db.add(Persona(id=1, contact={"name": "V"}, preferences={"tone": "plain"},
                         resume_content={"summary": "fintech PM"}, work_auth={},
                         qa_bank=[{"question": "Why fintech?", "answer": "Because payments."}]))

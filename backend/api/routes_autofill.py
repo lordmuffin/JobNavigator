@@ -39,13 +39,9 @@ async def autofill_answer(body: dict):
         len_row = db.query(Setting).filter(Setting.key == "autofill_default_length").first()
         default_len = int(len_row.value) if len_row and (len_row.value or "").isdigit() else 120
         tmpl_row = db.query(Setting).filter(Setting.key == "autofill_prompt").first()
-        if tmpl_row and (tmpl_row.value or "").strip():
-            template = tmpl_row.value
-        else:
-            # Setting missing/empty (e.g. DB not seeded yet) — fall back to the
-            # shipped default template rather than 500ing.
-            from backend.seed import DEFAULT_SETTINGS
-            template = DEFAULT_SETTINGS["autofill_prompt"][0]
+        if not tmpl_row or not (tmpl_row.value or "").strip():
+            raise HTTPException(500, "autofill_prompt setting is empty")
+        template = tmpl_row.value
         persona_txt = _flatten_persona(persona) if persona else "(no persona)"
         qa_txt = _flatten_qa_bank(persona.qa_bank if persona else [])
 
@@ -74,10 +70,12 @@ async def autofill_answer(body: dict):
               .replace("{position}", position)
               .replace("{question}", question)
               .replace("{max_chars}", str(max_chars)))
+    # {max_chars} is deliberately NOT substituted here: it must stay out of the
+    # cached prefix so different length limits reuse the same cache entry
+    # (only {persona}/{qa_bank}/instructions are stable across requests).
     cached_prefix = (template.split("{company}")[0]
                      .replace("{persona}", persona_txt)
-                     .replace("{qa_bank}", qa_txt)
-                     .replace("{max_chars}", str(max_chars)))
+                     .replace("{qa_bank}", qa_txt))
     system = "You write concise, truthful first-person job-application answers grounded only in the provided profile."
 
     # token budget: ~ chars/3 + headroom
@@ -90,5 +88,5 @@ async def autofill_answer(body: dict):
         answer = (resp.get("text") or "").strip().strip('"')
     except Exception as e:
         logger.error(f"autofill generation failed: {e}")
-        raise HTTPException(502, "autofill generation failed")
+        raise HTTPException(502, "autofill generation failed") from e
     return {"answer": answer}
