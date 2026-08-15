@@ -361,5 +361,7 @@ No regressions.
 ### Commit (fix round 1)
 
 ```
-<filled in after commit — see below>
+893d7bc fix(autofill): restore fail-loud prompt check, chain exception, fix cache key
+ 3 files changed, 376 insertions(+), 10 deletions(-)
+ create mode 100644 .superpowers/sdd/2026-08-15-application-autofill/task-3-report.md
 ```
