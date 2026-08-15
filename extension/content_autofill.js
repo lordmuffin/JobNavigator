@@ -83,16 +83,40 @@
   function removeButton() { if (host) { host.remove(); host = null; } }
   function removePopover() { if (popoverHost) { popoverHost.remove(); popoverHost = null; } }
 
+  // A field can be generating while its popover is closed — leave a spinner on it.
+  const busyBadges = new Map(); // fieldKey -> host
+  function removeBusyBadge(key) { const b = busyBadges.get(key); if (b) { b.remove(); busyBadges.delete(key); } }
+  function showBusyBadge(el, key) {
+    removeBusyBadge(key);
+    const b = document.createElement('div');
+    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;';
+    const root = b.attachShadow({ mode: 'open' });
+    root.innerHTML = '<style>.s{width:22px;height:22px;box-sizing:border-box;border:2px solid #3B82F6;' +
+      'border-top-color:transparent;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);' +
+      'animation:sp .7s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}</style><div class="s"></div>';
+    const r = el.getBoundingClientRect();
+    b.style.top = `${window.scrollY + r.bottom - 29}px`;
+    b.style.left = `${window.scrollX + r.right - 25}px`;
+    document.body.appendChild(b);
+    busyBadges.set(key, b);
+  }
+
   function showButton(el) {
     removeButton();
     removePopover();
     currentField = el;
+    const key = fieldKey(el);
+    removeBusyBadge(key);  // the button IS the indicator while the field is focused
+    const busy = !!(fieldState.get(key) && fieldState.get(key).busy);
     host = document.createElement('div');
     // Invisible right-aligned rail: the pill sits at the field's bottom-right and
     // grows LEFTWARD on hover while its icon stays pinned to the corner. The rail
     // is pointer-events:none so its empty area never blocks clicks on the page.
     host.style.cssText = 'position:absolute;z-index:2147483647;display:flex;justify-content:flex-end;align-items:flex-end;width:270px;height:26px;pointer-events:none;';
     const root = host.attachShadow({ mode: 'open' });
+    const inner = busy
+      ? `<div class="btn spin" title="Generating…"><span class="sp"></span></div>`
+      : `<button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
     root.innerHTML = `
       <style>
         .btn{pointer-events:auto;height:26px;display:flex;flex-direction:row-reverse;align-items:center;
@@ -102,8 +126,13 @@
         .btn:hover{max-width:260px}
         .btn img{width:18px;height:18px;margin:3px;flex:0 0 auto}
         .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
+        .btn.spin{justify-content:center;max-width:26px}
+        .btn.spin:hover{max-width:26px}
+        .btn.spin .sp{width:14px;height:14px;box-sizing:border-box;border:2px solid #3B82F6;
+              border-top-color:transparent;border-radius:50%;margin:3px;animation:sp .7s linear infinite}
+        @keyframes sp{to{transform:rotate(360deg)}}
       </style>
-      <button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
+      ${inner}`;
     const r = el.getBoundingClientRect();
     // 3px inset from the field's bottom-right corner.
     host.style.top = `${window.scrollY + r.bottom - 29}px`;
@@ -111,7 +140,7 @@
     document.body.appendChild(host);
     root.querySelector('.btn').addEventListener('click', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      onGenerate(el);
+      onGenerate(el);  // clicking the spinner re-opens the popover, which shows the live loader
     });
   }
 
@@ -129,6 +158,8 @@
   function showPopover(el, ctx, st) {
     removeButton();
     removePopover();
+    const key = fieldKey(el);
+    removeBusyBadge(key);  // popover is open now; no need for the standalone spinner
     // While the popover is open, the field is no longer "current" for the
     // scroll handler's button-repositioning logic - otherwise scrolling would
     // spawn a second floating button next to the open popover.
@@ -214,10 +245,13 @@
       st.busy = false;
       if (resp && resp.answer) { st.text = resp.answer; st.error = null; }
       else { st.text = null; st.error = (resp && resp.error) || 'unknown'; }
+      removeBusyBadge(key);  // generation finished; drop the field spinner if the popover was closed
       if (popoverHost === pop) render();
     };
 
-    const close = () => { pop.remove(); if (popoverHost === pop) popoverHost = null; };
+    // Closing while a generation is in flight leaves a spinner badge on the field
+    // so the user can see it's still being worked on.
+    const close = () => { if (st.busy) showBusyBadge(el, key); pop.remove(); if (popoverHost === pop) popoverHost = null; };
     root.getElementById('insert').onclick = () => { fillField(el, ta.value); close(); };
     root.getElementById('copy').onclick = () => navigator.clipboard.writeText(ta.value);
     saveBtn.onclick = async () => {
