@@ -186,6 +186,11 @@
 
     const generate = async () => {
       setBusy(true);
+      // Keep focus in the popover: setBusy disables the action buttons, and if one
+      // (e.g. Regenerate) was focused, blurring it would drop focus to <body> and the
+      // focusout handler would close the popover mid-generation. The textarea stays
+      // focusable while readOnly.
+      ta.focus();
       saveBtn.textContent = 'Save to bank';
       const resp = await chrome.runtime.sendMessage({
         type: 'autofill_generate',
