@@ -135,17 +135,15 @@
     removePopover();
     currentField = el;
     const key = fieldKey(el);
-    removeBusyBadge(key);  // the button IS the indicator while the field is focused
-    const busy = !!(fieldState.get(key) && fieldState.get(key).busy);
+    const st = fieldState.get(key);
+    if (st && st.busy) { showBusyBadge(el, key); return; }  // generating → show the loader badge, not the pill
+    removeBusyBadge(key);
     host = document.createElement('div');
     // Invisible right-aligned rail: the pill sits at the field's bottom-right and
     // grows LEFTWARD on hover while its icon stays pinned to the corner. The rail
     // is pointer-events:none so its empty area never blocks clicks on the page.
     host.style.cssText = 'position:absolute;z-index:2147483647;display:flex;justify-content:flex-end;align-items:flex-end;width:270px;height:26px;pointer-events:none;';
     const root = host.attachShadow({ mode: 'open' });
-    const inner = busy
-      ? `<div class="btn busy" title="Generating…"><span class="ring"></span><img src="${NAV_ICON}" alt="Navigator"></div>`
-      : `<button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
     root.innerHTML = `
       <style>
         .btn{pointer-events:auto;height:26px;display:flex;flex-direction:row-reverse;align-items:center;
@@ -155,14 +153,8 @@
         .btn:hover{max-width:260px}
         .btn img{width:18px;height:18px;margin:3px;flex:0 0 auto}
         .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
-        .btn.busy{position:relative;justify-content:center;max-width:26px;overflow:visible}
-        .btn.busy:hover{max-width:26px}
-        .btn.busy img{width:16px;height:16px;margin:0}
-        .btn.busy .ring{position:absolute;inset:-1px;border:2px solid rgba(59,130,246,.25);
-              border-top-color:#3B82F6;border-radius:50%;animation:sp .7s linear infinite}
-        @keyframes sp{to{transform:rotate(360deg)}}
       </style>
-      ${inner}`;
+      <button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
     const r = el.getBoundingClientRect();
     // 3px inset from the field's bottom-right corner.
     host.style.top = `${window.scrollY + r.bottom - 29}px`;
@@ -170,7 +162,7 @@
     document.body.appendChild(host);
     root.querySelector('.btn').addEventListener('click', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      onGenerate(el);  // clicking the spinner re-opens the popover, which shows the live loader
+      onGenerate(el);
     });
   }
 
@@ -189,7 +181,6 @@
     removeButton();
     removePopover();
     const key = fieldKey(el);
-    removeBusyBadge(key);  // popover is open now; no need for the standalone spinner
     // While the popover is open, the field is no longer "current" for the
     // scroll handler's button-repositioning logic - otherwise scrolling would
     // spawn a second floating button next to the open popover.
@@ -264,6 +255,7 @@
       ta.focus();
       saveBtn.textContent = 'Save to bank';
       st.busy = true; st.text = null; st.error = null;
+      showBusyBadge(el, key);  // field loader — visible whether the popover is open or closed
       const p = chrome.runtime.sendMessage({
         type: 'autofill_generate',
         question: ctx.question, company: ctx.company, position: ctx.position,
@@ -276,8 +268,9 @@
       st.busy = false;
       if (resp && resp.answer) { st.text = resp.answer; st.error = null; }
       else { st.text = null; st.error = (resp && resp.error) || 'unknown'; }
-      if (popoverHost === pop) { removeBusyBadge(key); render(); }
-      else if (busyBadges.has(key)) { st.error ? removeBusyBadge(key) : finishBadge(key); }  // popover closed: flash the check
+      if (popoverHost === pop) render();
+      // Field indicator resolves the same way whether the popover is open or closed:
+      if (st.error) removeBusyBadge(key); else finishBadge(key);  // pill → loader → blue check
     };
 
     // Route through removePopover so the busy badge (if generating) is shown.
@@ -300,6 +293,7 @@
 
     // Restore the field's prior state instead of always regenerating.
     if (st.busy && st.promise) {
+      showBusyBadge(el, key);                          // keep the field loader visible
       setBusy(true);                                   // a generation is still in flight
       st.promise.then(() => { if (popoverHost === pop) render(); });
     } else if (st.text != null) {
