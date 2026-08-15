@@ -93,22 +93,41 @@
     }
   }
 
-  // A field can be generating while its popover is closed — leave a spinner on it.
+  // A field can be generating while its popover is closed — leave a badge on it:
+  // the Navigator icon inside a spinning ring, which flips to a blue check on done.
   const busyBadges = new Map(); // fieldKey -> host
+  const BADGE_STYLE =
+    '.badge{width:30px;height:30px;box-sizing:border-box;border-radius:50%;background:#fff;' +
+    'box-shadow:0 1px 6px rgba(0,0,0,.3);position:relative;display:flex;align-items:center;justify-content:center}' +
+    '.badge img{width:16px;height:16px}' +
+    '.ring{position:absolute;inset:-1px;border:2px solid rgba(59,130,246,.25);border-top-color:#3B82F6;' +
+    'border-radius:50%;animation:sp .7s linear infinite}' +
+    '.badge.done{border:2px solid #3B82F6}' +
+    '.chk{width:17px;height:17px;fill:none;stroke:#3B82F6;stroke-width:3;stroke-linecap:round;' +
+    'stroke-linejoin:round;animation:pop .25s ease-out}' +
+    '@keyframes sp{to{transform:rotate(360deg)}}' +
+    '@keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}';
+  const BADGE_LOADING = `<div class="badge"><span class="ring"></span><img src="${NAV_ICON}" alt="Navigator"></div>`;
+  const BADGE_DONE = '<div class="badge done"><svg class="chk" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>';
+
   function removeBusyBadge(key) { const b = busyBadges.get(key); if (b) { b.remove(); busyBadges.delete(key); } }
   function showBusyBadge(el, key) {
     removeBusyBadge(key);
     const b = document.createElement('div');
-    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:24px;height:24px;';
-    const root = b.attachShadow({ mode: 'open' });
-    root.innerHTML = '<style>.s{width:24px;height:24px;box-sizing:border-box;border:3px solid #3B82F6;' +
-      'border-top-color:transparent;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.3);' +
-      'animation:sp .7s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}</style><div class="s"></div>';
+    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:30px;height:30px;';
+    b.attachShadow({ mode: 'open' }).innerHTML = `<style>${BADGE_STYLE}</style>${BADGE_LOADING}`;
     const r = el.getBoundingClientRect();
-    b.style.top = `${window.scrollY + r.bottom - 29}px`;
-    b.style.left = `${window.scrollX + r.right - 25}px`;
+    b.style.top = `${window.scrollY + r.bottom - 33}px`;
+    b.style.left = `${window.scrollX + r.right - 33}px`;
     document.body.appendChild(b);
     busyBadges.set(key, b);
+  }
+  // Swap a live badge to a blue check, then auto-remove it shortly after.
+  function finishBadge(key) {
+    const b = busyBadges.get(key);
+    if (!b || !b.shadowRoot) { removeBusyBadge(key); return; }
+    b.shadowRoot.innerHTML = `<style>${BADGE_STYLE}</style>${BADGE_DONE}`;
+    setTimeout(() => { if (busyBadges.get(key) === b) removeBusyBadge(key); }, 1800);
   }
 
   function showButton(el) {
@@ -125,7 +144,7 @@
     host.style.cssText = 'position:absolute;z-index:2147483647;display:flex;justify-content:flex-end;align-items:flex-end;width:270px;height:26px;pointer-events:none;';
     const root = host.attachShadow({ mode: 'open' });
     const inner = busy
-      ? `<div class="btn spin" title="Generating…"><span class="sp"></span></div>`
+      ? `<div class="btn busy" title="Generating…"><span class="ring"></span><img src="${NAV_ICON}" alt="Navigator"></div>`
       : `<button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
     root.innerHTML = `
       <style>
@@ -136,10 +155,11 @@
         .btn:hover{max-width:260px}
         .btn img{width:18px;height:18px;margin:3px;flex:0 0 auto}
         .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
-        .btn.spin{justify-content:center;max-width:26px}
-        .btn.spin:hover{max-width:26px}
-        .btn.spin .sp{width:14px;height:14px;box-sizing:border-box;border:2px solid #3B82F6;
-              border-top-color:transparent;border-radius:50%;margin:3px;animation:sp .7s linear infinite}
+        .btn.busy{position:relative;justify-content:center;max-width:26px;overflow:visible}
+        .btn.busy:hover{max-width:26px}
+        .btn.busy img{width:16px;height:16px;margin:0}
+        .btn.busy .ring{position:absolute;inset:-1px;border:2px solid rgba(59,130,246,.25);
+              border-top-color:#3B82F6;border-radius:50%;animation:sp .7s linear infinite}
         @keyframes sp{to{transform:rotate(360deg)}}
       </style>
       ${inner}`;
@@ -256,8 +276,8 @@
       st.busy = false;
       if (resp && resp.answer) { st.text = resp.answer; st.error = null; }
       else { st.text = null; st.error = (resp && resp.error) || 'unknown'; }
-      removeBusyBadge(key);  // generation finished; drop the field spinner if the popover was closed
-      if (popoverHost === pop) render();
+      if (popoverHost === pop) { removeBusyBadge(key); render(); }
+      else if (busyBadges.has(key)) { st.error ? removeBusyBadge(key) : finishBadge(key); }  // popover closed: flash the check
     };
 
     // Route through removePopover so the busy badge (if generating) is shown.
