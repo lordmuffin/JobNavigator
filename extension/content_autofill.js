@@ -9,9 +9,8 @@
   const DEFAULT_LEN = parseInt(cfg.autofillDefaultLength, 10) || 250;  // popup-configurable
 
   const NAV_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAALY0lEQVR4nN2aaWxU1xXH/+fe92a8AyExa8y+GYcEk5AQkgyFpM2nfoqrKmlaguiHRqoq5VOlqrJQqVSpHxulH4IoaUISyR+qqmpRSwsekgAhGAiLWR0w4GC22ICXmbfcU5375sEMjM0MpE3VI408fvPmnt9Z7rnnvjuE+xdCS4vCpUZCGgZYZ0a/vVUhBYX6TkZbm9zL96f8nkVA2hXS6SD/6uylr9ShsrLOD3g2gtxHjgPXoVMYHr5+as/m6wXDpFIO0itKMPzrMyDyeFtbKP88sPSVujonucIoXgnmxTC8kMHV2klU5H8pDLwMgQah6AiI9itD264H2favYoNaWvS9RKQ8AyIlFnzqsjVNWvOPmPn7SjlTQQpgAzYhWBiMMUIiLyVfUEoRCKQ04nuNCc4T0YdhSO+c37Xx8O06vk4DCK2thHXrzNSnfjhFafUrgF5R2k1w6Au0wBoCCaPlZYAcMBwAGQGPPcswDGYCFCmtSLswoe8BvNmE5pfnd/+xB62tCuvWxfbfrwGtKs7PhqdXryWlf01K1ZvAAzMHRBCXFowjFtyAwiq6gQb42MDjMQ4BwjvUMTMjJCJHOQmwMZfYhL84u3PThtt1jyRqdPZoAJmY05aveVtp922wqQ/9rMxOFsW3w0deYXggNCOD52jQOpKL+opEJEhsx2RTLzpEly0GAm8Z7sWAKIym4ZmXx3luYqvS7loTeCFzmAMfOXoGhGoYLKQMFiKDafCtQaOEm2RMGVt0iC7RKbqFYTQjRvjgFjw4+XelnaVBMOyjSLrcQWJzXmEWeZiHrDWkkTLxPLiLkNykRZfoFN03jbDpVJoBhJZOmvDCD6pz8E9IeAnk3lW/HTBKn+UYRC1Cm/fyXoaV1CpFCOSKTtEtDJalpVPsp7sbkKvxiUH9O+0kBN7PpUxJIrku1ecJDMmybI15nIbsJA6gSi97RI7oFgZhsaVV2EY1IFeDpy57dY12Eq+FXiYgKs3zVmkOeDJ8zKcMsiD4ACYhwBzKlphGt0R0C4OwCFPOCJ13S8F4srrwtNTqCcanY4qoltkUDdtIosHoh4OXqB/r6YJ9LyLel1L6W67H2KLldFRhIsWG+YZyeX53etPF3Dw0hRFoaSGAmD3+jXbcMcaEckN5mnLpk8KArUSS83FJfRTDSMLY62UKCYswCZswRqy5D6M/Ub2f9tyrCzh09oONpE1Z3pcbAxDGIMT7qtv+lf+jAaJ14DVuwClOIBk1G+VItCqT8kkHi7t3vHs0ZrYRSEl7K3f4aq3SbpKZy/Z+VD4JTZTBQwggNTceIISyBsnElhIrlapMIWGybL5am88ce5nnPb2mdojD40qpiRF/eQbE+b+eevGSuoZryoWScZhhlEItB9ga1uANnowam0plCxMp6RF7q0jPO75z4w1hVEil7KweMt4K5biT2IR8L94PlcZEzViqhjCUzcL094GHhsCeB+7rw9Cwh2YaQoM2CJS+Sw9TVEjYhFFY7ZVUSjtLBuZRB9LSO75gLbRdZWnjK6WgiGDCEFeGfTR6VzG5chDezDkY27gAtatWQdXVYXD7dtzYuQsPnu/GzP5eHHHGY1KlA0fLlGdI4y1d3d1EOl5FSgkrgL8Iu9Mxs8+go1URziyWHt22xCMIEUG6epEwNBgYHIbnBxhXV41Fs6fix8tX4qEVzdCNTVD6VrmuaGrCuNdfB5/txk8+OYDB9BF0dnbhSt91aK1QVZlEwo1K7mjGWDbLyItlEnfM7LR1Ho2p12tueAOnldIPMtt9CBWD9v0Ag8NZq2RMbRUea5yJF1NLsPLpxzBn2sQCaIThrbZJgPI/A3DidA/adx/C7n1HsXPfUfRe7rd6KisSSLiu/WoRY2QeSFm9UpuomdGZfmvAapj17OqH/ZCPEahSQqqISNLDMCOb9TCc8UCKUD9+DJ5avAAvpprR3DQbc2dMKYCSVJKUghohA42xY8quLD/OFy59hR17DmNLewc6Dp1E7+U++EFgI5NMJKI0jb7L0erCw66m+V0fbTpnh2lYtnolOc6/OPDE/Wook0Um4yGRcDHj4YlIPdmEVcsfQ/PCWZhU/8Atd0Q7RxslMbCcmS/eNWwsnDgrlr5rA/js4Alsad+LHXuO4PS5Xniej4qKBKoqkqLDkJNQHASrzu7atM0mnqzU8QCOo7F8SSOeW9qE5qZZWPLIHNTVVOUpNhY8Ti3J4XsR+a6S7jzal1mDJCrjxtTg288229f1gSEbkX2Hu2yEDh0/gzCItssx803tdjEAQyuFaVPqsXBuAx5fNLcAPva63Dz6rqB8IcpFNC/nRbcwCIswCdvtezsbATYky6NdO7Oej3f/tA0b27ZiyoTxeHTBDHxr2SKbQrMaJhV4PDSyUEXelIiUI7HXRWTM/O+fPN2Df35yANt3HcTnR0+j5+JVuI5GbXXlzV2FZY6rze2TWEdPQGyJlAkcBCHG1lVjxsMT8Pwzi7HiyUdsBaqpriwAEufFFWsksR5mLsj74UwWR06exZbte7F7/zH7XuaCpHNUlRzrqNCY4pN4pDJq81wmKBGCMEQm6yPredYb06dOxKIF022uLn+8EVMnPohy5MtLX+HAkS7r6Y/2HEFP7xVbohMJB5UVSbhaR1GyjuFRyqjdxDRyw7IzaeW4z5jAl3a9sGjnJE4VGc+W16xnrz/0wBjMbJiI1p+9jKcWz7cK8z0ce168cuKLHqx/80PsPXgSF6/2Q/wlFSaZcG2Oy31SKIoKI1SOq03gf3x21/SUbDPVki/G2baUQfulNYoSYYTwG7YrsCiQEisVQ16ywG3b+Tl+/95fIwOL6c6V27c2/xWb/7zdpubYumqMG1tj4cVoifKI8FGRkUVEpvF+YRZ21VFzPPfELNgqXWipfZB9IhUa+5IBZH2wXr3SH1WLPD/Ie621hf50/zFMnjDerhth/P0S+iARYbOdMgdb5X9hl6fLtrBWqUS7CfwLpHRUUcuQGFDagc87v7DX8sth/P5Y1zl091yGo/Wonh5BWNiEUVjtlXQ6FG9zKtXqSH9NwAekXdk8lPxwNRa7SWWDrR/vz6krjICIrK6DQxkboXKFmUNhE0ZhFWa5bEdK24MJgFyzwYR+VlqhcqMga4L0Ltt3H8SAQOaqiIgA+0FoK46UxXvyPpGybK7ZkM+cc8U6I9XI7jVN+KGSXqPMKAhsRSKB0+cuYs+B4/ZaXFFk8p778jK6ui+gIpkoSK9SRFiESdgso320Ej30vRXLtjZZYYgS9PMw8K8pZZfc8g4biGyv8rf2z2LNN2H/8dE+9F8ftPlfprCwCJOwCWPEGkl+Mhq0fE91p9/pZQ7fIO1IvSorCuLtZNJFx6FT8P3w5o5NJP3pITi6sDqVJPL4XTtKmIRNGONnQiKFsyn35Ov8rnc3hoH3B52ocJhZHq6VJOJtWUWPnTqHwyfO5DpWhUtXr+Hg0dOorEyWlT7M7AuDsAhTsdObO8uBnFO1tGivOvxpGHifaTfpykFGqUplwg4NZ7ElvffmtR2fHkZP71W70yo1AswciG5hEJa8M7QCKVbPWFqLi1vfGwRlv2PCQIxwGKVFQtJIWgMpp9I7iezc12n/ltqvMtgXnaJbGCxLW2PRI6cRCnJ0qHD24/f7ckbscZxKN5oTo7swTqOjJ8+h6+wFuzVs33UQVVXJqP0eHZ1Fh+gSnaLbMuROiop9Y+QVJXcyIgMkfO8FE/oblJPQRFoWOnvENFoayVoged/V3WtLq+xtR0kfjs7bNIkO0SU6b8LbA47/4iGfGNB3fQDfff5JNM2djvVvfoDxY+uKRIDv+5DvP3fMykyu49jdlrTdiuibOma9x4NuNrnNl+wNZBP9zR5039dPDcSN5n/ipwb/Jz/2wB1jfIM/t/k3rxDOzK106WEAAAAASUVORK5CYII='; // real Navigator icon, inlined (no web-accessible resource)
-  let host = null;      // shadow host for the button
   let popoverHost = null; // shadow host for the review popover
-  let currentField = null;
+  let currentField = null; // field whose pill is currently shown (for popover focusout logic)
   const fieldState = new Map(); // fieldKey(el) -> { text, error, busy, promise, maxChars } — keyed by a stable id so state survives the page re-rendering the field element
 
   const isAnswerField = (el) => {
@@ -80,94 +79,109 @@
     return el.id || el.name || (questionFor(el) ? 'q:' + questionFor(el) : 'autofill-field');
   }
 
-  function removeButton() { if (host) { host.remove(); host = null; } }
-  // Any teardown of the popover while its field is still generating leaves a
-  // spinner badge on the field (focusout, click-outside, or being replaced all
-  // route through here — so the "still working" indicator never gets skipped).
-  function removePopover() {
-    if (popoverHost) {
-      const bi = popoverHost._busyInfo;
-      if (bi && bi.st.busy) showBusyBadge(bi.el, bi.key);
-      popoverHost.remove();
-      popoverHost = null;
+  function removePopover() { if (popoverHost) { popoverHost.remove(); popoverHost = null; } }
+
+  // ── Field widget ───────────────────────────────────────────────────────────
+  // ONE persistent element per field that morphs pill ⇄ loading ⇄ done IN PLACE,
+  // so state changes animate via CSS transitions instead of swapping DOM nodes
+  // (the standard "button that turns into a spinner" pattern). Keyed by fieldKey
+  // so several fields can be mid-generation at once, and it survives the popover
+  // opening/closing and the field losing focus while a generation is in flight.
+  const widgets = new Map(); // fieldKey -> { host, node, el, key, state }
+  const WIDGET_CSS = `
+    .wrap{position:relative;width:26px;height:26px;pointer-events:none}
+    .btn{pointer-events:auto;position:absolute;right:0;top:0;box-sizing:border-box;height:26px;
+         max-width:26px;display:flex;flex-direction:row-reverse;align-items:center;
+         border-radius:13px;border:1px solid #3B82F6;background:#fff;cursor:pointer;
+         box-shadow:0 1px 4px rgba(0,0,0,.2);overflow:hidden;padding:0;white-space:nowrap;
+         transition:max-width .35s cubic-bezier(.4,0,.2,1)}
+    .wrap.pill .btn:hover{max-width:260px}
+    .wrap.loading .btn,.wrap.done .btn{cursor:default}
+    .icon{width:18px;height:18px;margin:3px;flex:0 0 auto;transition:opacity .2s}
+    .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
+    .ring{position:absolute;inset:-2px;border:2px solid transparent;border-top-color:#3B82F6;
+          border-radius:50%;opacity:0;transition:opacity .25s;animation:sp .7s linear infinite;
+          pointer-events:none}
+    .wrap.loading .ring{opacity:1}
+    .chk{position:absolute;left:50%;top:50%;width:16px;height:16px;fill:none;stroke:#3B82F6;
+         stroke-width:3;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;
+         opacity:0;transform:translate(-50%,-50%) scale(.3);transition:opacity .2s,transform .2s}
+    .wrap.done .chk{opacity:1;transform:translate(-50%,-50%) scale(1)}
+    .wrap.done .icon{opacity:0}
+    @keyframes sp{to{transform:rotate(360deg)}}`;
+
+  function positionWidget(w) {
+    const r = w.el.getBoundingClientRect();
+    // Right-aligned rail so the pill grows leftward while the icon stays pinned
+    // to the field's bottom-right corner (3px inset).
+    w.host.style.top = `${window.scrollY + r.bottom - 29}px`;
+    w.host.style.left = `${window.scrollX + r.right - 273}px`;
+  }
+
+  function widgetFor(el) {
+    const key = fieldKey(el);
+    let w = widgets.get(key);
+    if (!w) {
+      const host = document.createElement('div');
+      host.style.cssText = 'position:absolute;z-index:2147483647;display:flex;justify-content:flex-end;align-items:flex-end;width:270px;height:26px;pointer-events:none;';
+      const root = host.attachShadow({ mode: 'open' });
+      root.innerHTML = `<style>${WIDGET_CSS}</style>
+        <div class="wrap pill">
+          <button class="btn" title="Generate with JobNavigator">
+            <img class="icon" src="${NAV_ICON}" alt="Navigator">
+            <span class="lbl">Generate with JobNavigator</span>
+          </button>
+          <span class="ring"></span>
+          <svg class="chk" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
+        </div>`;
+      root.querySelector('.btn').addEventListener('click', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        // Opens the popover in the right mode for the field's state: first-time
+        // generate (pill), the live loader (loading), or the saved answer (done).
+        const cur = widgets.get(key);
+        if (cur) onGenerate(cur.el);
+      });
+      document.body.appendChild(host);
+      w = { host, node: root.querySelector('.wrap'), el, key, state: 'pill' };
+      widgets.set(key, w);
     }
+    w.el = el;              // the page may have re-rendered the field element
+    positionWidget(w);
+    return w;
   }
 
-  // A field can be generating while its popover is closed — leave a badge on it:
-  // the Navigator icon inside a spinning ring, which flips to a blue check on done.
-  const busyBadges = new Map(); // fieldKey -> host
-  // Same footprint as the collapsed pill (26px, 1px blue border, 18px icon) so the
-  // pill→loader→check sequence stays visually continuous; only the spinning ring
-  // (which fades in) and the check swap between states.
-  const BADGE_STYLE =
-    '.badge{width:26px;height:26px;box-sizing:border-box;border:1px solid #3B82F6;border-radius:50%;' +
-    'background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);position:relative;display:flex;' +
-    'align-items:center;justify-content:center}' +
-    '.badge img{width:18px;height:18px}' +
-    '.ring{position:absolute;inset:-2px;border:2px solid transparent;border-top-color:#3B82F6;' +
-    'border-radius:50%;opacity:0;animation:sp .7s linear infinite,fade .2s ease-out forwards}' +
-    '.chk{width:16px;height:16px;fill:none;stroke:#3B82F6;stroke-width:3;stroke-linecap:round;' +
-    'stroke-linejoin:round;animation:pop .25s ease-out}' +
-    '@keyframes sp{to{transform:rotate(360deg)}}' +
-    '@keyframes fade{to{opacity:1}}' +
-    '@keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}';
-  const BADGE_LOADING = `<div class="badge"><span class="ring"></span><img src="${NAV_ICON}" alt="Navigator"></div>`;
-  const BADGE_DONE = '<div class="badge done"><svg class="chk" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>';
-
-  function removeBusyBadge(key) { const b = busyBadges.get(key); if (b) { b.remove(); busyBadges.delete(key); } }
-  function showBusyBadge(el, key) {
-    removeBusyBadge(key);
-    const b = document.createElement('div');
-    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:26px;height:26px;';
-    b.attachShadow({ mode: 'open' }).innerHTML = `<style>${BADGE_STYLE}</style>${BADGE_LOADING}`;
-    const r = el.getBoundingClientRect();
-    b.style.top = `${window.scrollY + r.bottom - 29}px`;
-    b.style.left = `${window.scrollX + r.right - 29}px`;
-    document.body.appendChild(b);
-    busyBadges.set(key, b);
+  function setWidgetState(w, state) {
+    w.node.classList.remove('pill', 'loading', 'done');
+    w.node.classList.add(state);
+    w.state = state;
   }
-  // Swap a live badge to a blue check, then auto-remove it shortly after.
-  function finishBadge(key) {
-    const b = busyBadges.get(key);
-    if (!b || !b.shadowRoot) { removeBusyBadge(key); return; }
-    b.shadowRoot.innerHTML = `<style>${BADGE_STYLE}</style>${BADGE_DONE}`;
-    setTimeout(() => { if (busyBadges.get(key) === b) removeBusyBadge(key); }, 1800);
+  function removeWidget(key) {
+    const w = widgets.get(key);
+    if (w) { w.host.remove(); widgets.delete(key); }
+  }
+
+  // Generation lifecycle → widget state (works whether the popover is open or not).
+  function markLoading(el) { setWidgetState(widgetFor(el), 'loading'); }
+  function settleWidget(key) {
+    // After the check has shown (or on error): back to pill if the field is still
+    // focused, otherwise remove the widget entirely.
+    const w = widgets.get(key);
+    if (!w) return;
+    if (document.activeElement === w.el) setWidgetState(w, 'pill'); else removeWidget(key);
+  }
+  function markError(key) { settleWidget(key); }
+  function markDone(key) {
+    const w = widgets.get(key);
+    if (!w) return;
+    setWidgetState(w, 'done');            // loader → blue check
+    setTimeout(() => { const cur = widgets.get(key); if (cur === w && w.state === 'done') settleWidget(key); }, 1800);
   }
 
   function showButton(el) {
-    removeButton();
     removePopover();
     currentField = el;
-    const key = fieldKey(el);
-    const st = fieldState.get(key);
-    if (st && st.busy) { showBusyBadge(el, key); return; }  // generating → show the loader badge, not the pill
-    removeBusyBadge(key);
-    host = document.createElement('div');
-    // Invisible right-aligned rail: the pill sits at the field's bottom-right and
-    // grows LEFTWARD on hover while its icon stays pinned to the corner. The rail
-    // is pointer-events:none so its empty area never blocks clicks on the page.
-    host.style.cssText = 'position:absolute;z-index:2147483647;display:flex;justify-content:flex-end;align-items:flex-end;width:270px;height:26px;pointer-events:none;';
-    const root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = `
-      <style>
-        .btn{pointer-events:auto;height:26px;display:flex;flex-direction:row-reverse;align-items:center;
-             border-radius:13px;border:1px solid #3B82F6;background:#fff;cursor:pointer;
-             box-shadow:0 1px 4px rgba(0,0,0,.2);overflow:hidden;padding:0;white-space:nowrap;
-             max-width:26px;transition:max-width .4s cubic-bezier(.4,0,.2,1)}
-        .btn:hover{max-width:260px}
-        .btn img{width:18px;height:18px;margin:3px;flex:0 0 auto}
-        .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
-      </style>
-      <button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
-    const r = el.getBoundingClientRect();
-    // 3px inset from the field's bottom-right corner.
-    host.style.top = `${window.scrollY + r.bottom - 29}px`;
-    host.style.left = `${window.scrollX + r.right - 273}px`;  // rail right edge = field right - 3px
-    document.body.appendChild(host);
-    root.querySelector('.btn').addEventListener('click', (ev) => {
-      ev.preventDefault(); ev.stopPropagation();
-      onGenerate(el);
-    });
+    const w = widgetFor(el);
+    if (w.state !== 'loading' && w.state !== 'done') setWidgetState(w, 'pill');
   }
 
   function onGenerate(el) {
@@ -182,12 +196,8 @@
   }
 
   function showPopover(el, ctx, st) {
-    removeButton();
-    removePopover();
+    removePopover();  // the field widget stays and morphs to loading via generate()
     const key = fieldKey(el);
-    // While the popover is open, the field is no longer "current" for the
-    // scroll handler's button-repositioning logic - otherwise scrolling would
-    // spawn a second floating button next to the open popover.
     currentField = null;
     const pop = document.createElement('div');
     pop.style.cssText = 'position:absolute;z-index:2147483647;';
@@ -226,7 +236,6 @@
     pop.style.left = `${window.scrollX + r.left}px`;
     document.body.appendChild(pop);
     popoverHost = pop;
-    pop._busyInfo = { el, key, st };  // lets removePopover() badge the field if torn down mid-generation
 
     const ta = root.getElementById('ans');
     const count = root.getElementById('count');
@@ -259,7 +268,7 @@
       ta.focus();
       saveBtn.textContent = 'Save to bank';
       st.busy = true; st.text = null; st.error = null;
-      showBusyBadge(el, key);  // field loader — visible whether the popover is open or closed
+      markLoading(el);  // field pill morphs to the loader (popover open or closed)
       const p = chrome.runtime.sendMessage({
         type: 'autofill_generate',
         question: ctx.question, company: ctx.company, position: ctx.position,
@@ -274,7 +283,7 @@
       else { st.text = null; st.error = (resp && resp.error) || 'unknown'; }
       if (popoverHost === pop) render();
       // Field indicator resolves the same way whether the popover is open or closed:
-      if (st.error) removeBusyBadge(key); else finishBadge(key);  // pill → loader → blue check
+      if (st.error) markError(key); else markDone(key);  // loader → blue check → settle
     };
 
     // Route through removePopover so the busy badge (if generating) is shown.
@@ -297,7 +306,7 @@
 
     // Restore the field's prior state instead of always regenerating.
     if (st.busy && st.promise) {
-      showBusyBadge(el, key);                          // keep the field loader visible
+      markLoading(el);                                 // keep the field loader visible
       setBusy(true);                                   // a generation is still in flight
       st.promise.then(() => { if (popoverHost === pop) render(); });
     } else if (st.text != null) {
@@ -325,16 +334,16 @@
     if (isAnswerField(e.target)) showButton(e.target);
   }, true);
   document.addEventListener('focusout', () => {
-    // keep the button/popover if focus moved into their own shadow host
     setTimeout(() => {
       const active = document.activeElement;
-      if (host && active !== currentField && !host.contains(active)) removeButton();
+      // Remove only idle (pill) widgets that lost focus; loading/done widgets
+      // persist through generation and the brief check regardless of focus.
+      for (const [key, w] of widgets) {
+        if (w.state === 'pill' && active !== w.el && !w.host.contains(active)) removeWidget(key);
+      }
       if (popoverHost && active !== currentField && !popoverHost.contains(active)) removePopover();
     }, 150);
   }, true);
-  // Scroll only repositions the button, and only while no popover is open
-  // (the popover's field is cleared from currentField above, so this is a
-  // no-op then - re-showing the button on scroll would otherwise spawn a
-  // second floating widget next to the open popover).
-  window.addEventListener('scroll', () => { if (currentField) showButton(currentField); }, true);
+  // Keep every widget pinned to its field as the page scrolls.
+  window.addEventListener('scroll', () => { for (const w of widgets.values()) positionWidget(w); }, true);
 })();
