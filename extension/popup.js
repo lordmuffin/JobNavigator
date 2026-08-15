@@ -483,3 +483,17 @@ chrome.runtime.onMessage.addListener((msg) => {
     updateLinkedinCount(msg.count);
   }
 });
+
+// --- Application Autofill UI ---
+
+const autofillToggle = document.getElementById('autofillToggle');
+
+// Load toggle state
+chrome.storage.sync.get('autofillEnabled', (data) => {
+  autofillToggle.checked = !!data.autofillEnabled;
+});
+
+// Toggle handler
+autofillToggle.addEventListener('change', () => {
+  chrome.storage.sync.set({ autofillEnabled: autofillToggle.checked });
+});
