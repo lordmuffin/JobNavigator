@@ -497,3 +497,13 @@ chrome.storage.sync.get('autofillEnabled', (data) => {
 autofillToggle.addEventListener('change', () => {
   chrome.storage.sync.set({ autofillEnabled: autofillToggle.checked });
 });
+
+// Default answer length (used by the content script when a field has no maxlength)
+const autofillDefaultLength = document.getElementById('autofillDefaultLength');
+chrome.storage.sync.get('autofillDefaultLength', (data) => {
+  if (data.autofillDefaultLength) autofillDefaultLength.value = data.autofillDefaultLength;
+});
+autofillDefaultLength.addEventListener('change', () => {
+  const v = parseInt(autofillDefaultLength.value, 10);
+  if (v > 0) chrome.storage.sync.set({ autofillDefaultLength: v });
+});
