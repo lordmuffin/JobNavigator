@@ -13,11 +13,18 @@
   let popoverHost = null; // shadow host for the review popover
   let currentField = null;
 
-  const isAnswerField = (el) =>
-    el && !el.readOnly && !el.disabled &&
-    ((el.tagName === 'TEXTAREA') ||
-     (el.tagName === 'INPUT' && el.type === 'text' && (el.maxLength > 60 || el.maxLength === -1)) ||
-     el.isContentEditable);
+  const isAnswerField = (el) => {
+    if (!el || el.readOnly || el.disabled) return false;
+    // Skip searchable dropdowns / comboboxes / autocomplete pickers — many ATS build
+    // these as a text <input>, which would otherwise match the free-text heuristic.
+    if (el.getAttribute('role') === 'combobox' ||
+        el.getAttribute('aria-autocomplete') ||
+        el.getAttribute('aria-haspopup') === 'listbox' ||
+        el.hasAttribute('list')) return false;
+    return (el.tagName === 'TEXTAREA') ||
+      (el.tagName === 'INPUT' && el.type === 'text' && (el.maxLength > 60 || el.maxLength === -1)) ||
+      el.isContentEditable;
+  };
 
   function questionFor(el) {
     // label[for=id] -> aria-labelledby -> aria-label -> placeholder -> nearest preceding text
@@ -88,12 +95,13 @@
              max-width:26px;transition:max-width .4s cubic-bezier(.4,0,.2,1)}
         .btn:hover{max-width:260px}
         .btn img{width:18px;height:18px;margin:3px;flex:0 0 auto}
-        .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 12px;flex:0 0 auto}
+        .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
       </style>
       <button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
     const r = el.getBoundingClientRect();
-    host.style.top = `${window.scrollY + r.bottom - 30}px`;   // bottom-right of the field
-    host.style.left = `${window.scrollX + r.right - 270}px`;  // rail's right edge == field's right edge
+    // 3px inset from the field's bottom-right corner.
+    host.style.top = `${window.scrollY + r.bottom - 29}px`;
+    host.style.left = `${window.scrollX + r.right - 273}px`;  // rail right edge = field right - 3px
     document.body.appendChild(host);
     root.querySelector('.btn').addEventListener('click', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
