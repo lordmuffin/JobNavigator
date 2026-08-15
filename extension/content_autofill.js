@@ -97,13 +97,13 @@
   // the Navigator icon inside a spinning ring, which flips to a blue check on done.
   const busyBadges = new Map(); // fieldKey -> host
   const BADGE_STYLE =
-    '.badge{width:30px;height:30px;box-sizing:border-box;border-radius:50%;background:#fff;' +
-    'box-shadow:0 1px 6px rgba(0,0,0,.3);position:relative;display:flex;align-items:center;justify-content:center}' +
-    '.badge img{width:16px;height:16px}' +
+    '.badge{width:26px;height:26px;box-sizing:border-box;border-radius:50%;background:#fff;' +
+    'box-shadow:0 1px 4px rgba(0,0,0,.25);position:relative;display:flex;align-items:center;justify-content:center}' +
+    '.badge img{width:14px;height:14px}' +
     '.ring{position:absolute;inset:-1px;border:2px solid rgba(59,130,246,.25);border-top-color:#3B82F6;' +
     'border-radius:50%;animation:sp .7s linear infinite}' +
     '.badge.done{border:2px solid #3B82F6}' +
-    '.chk{width:17px;height:17px;fill:none;stroke:#3B82F6;stroke-width:3;stroke-linecap:round;' +
+    '.chk{width:15px;height:15px;fill:none;stroke:#3B82F6;stroke-width:3;stroke-linecap:round;' +
     'stroke-linejoin:round;animation:pop .25s ease-out}' +
     '@keyframes sp{to{transform:rotate(360deg)}}' +
     '@keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}';
@@ -114,11 +114,11 @@
   function showBusyBadge(el, key) {
     removeBusyBadge(key);
     const b = document.createElement('div');
-    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:30px;height:30px;';
+    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:26px;height:26px;';
     b.attachShadow({ mode: 'open' }).innerHTML = `<style>${BADGE_STYLE}</style>${BADGE_LOADING}`;
     const r = el.getBoundingClientRect();
-    b.style.top = `${window.scrollY + r.bottom - 33}px`;
-    b.style.left = `${window.scrollX + r.right - 33}px`;
+    b.style.top = `${window.scrollY + r.bottom - 29}px`;
+    b.style.left = `${window.scrollX + r.right - 29}px`;
     document.body.appendChild(b);
     busyBadges.set(key, b);
   }
