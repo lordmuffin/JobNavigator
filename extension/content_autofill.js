@@ -92,16 +92,17 @@
     .wrap{position:relative;width:26px;height:26px;pointer-events:none}
     .btn{pointer-events:auto;position:absolute;right:0;top:0;box-sizing:border-box;height:26px;
          max-width:26px;display:flex;flex-direction:row-reverse;align-items:center;
-         border-radius:13px;border:1px solid #3B82F6;background:#fff;cursor:pointer;
+         border-radius:13px;border:1.5px solid #3B82F6;background:#fff;cursor:pointer;
          box-shadow:0 1px 4px rgba(0,0,0,.2);overflow:hidden;padding:0;white-space:nowrap;
-         transition:max-width .35s cubic-bezier(.4,0,.2,1)}
+         transition:max-width .35s cubic-bezier(.4,0,.2,1),border-color .2s}
     .wrap.pill .btn:hover{max-width:260px}
     .wrap.loading .btn,.wrap.done .btn{cursor:default}
+    .wrap.loading .btn{border-color:transparent}  /* the spinning ring becomes the border */
     .icon{width:18px;height:18px;margin:3px;flex:0 0 auto;transition:opacity .2s}
     .lbl{font:600 12px system-ui;color:#3B82F6;padding:0 4px 0 10px;flex:0 0 auto}
-    .ring{position:absolute;inset:-2px;border:2px solid transparent;border-top-color:#3B82F6;
-          border-radius:50%;opacity:0;transition:opacity .25s;animation:sp .7s linear infinite;
-          pointer-events:none}
+    .ring{position:absolute;inset:0;box-sizing:border-box;border:1.5px solid rgba(59,130,246,.25);
+          border-top-color:#3B82F6;border-radius:50%;opacity:0;transition:opacity .2s;
+          animation:sp .7s linear infinite;pointer-events:none}
     .wrap.loading .ring{opacity:1}
     .chk{position:absolute;left:50%;top:50%;width:16px;height:16px;fill:none;stroke:#3B82F6;
          stroke-width:3;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;
