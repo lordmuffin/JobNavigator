@@ -96,16 +96,20 @@
   // A field can be generating while its popover is closed — leave a badge on it:
   // the Navigator icon inside a spinning ring, which flips to a blue check on done.
   const busyBadges = new Map(); // fieldKey -> host
+  // Same footprint as the collapsed pill (26px, 1px blue border, 18px icon) so the
+  // pill→loader→check sequence stays visually continuous; only the spinning ring
+  // (which fades in) and the check swap between states.
   const BADGE_STYLE =
-    '.badge{width:26px;height:26px;box-sizing:border-box;border-radius:50%;background:#fff;' +
-    'box-shadow:0 1px 4px rgba(0,0,0,.25);position:relative;display:flex;align-items:center;justify-content:center}' +
-    '.badge img{width:14px;height:14px}' +
-    '.ring{position:absolute;inset:-1px;border:2px solid rgba(59,130,246,.25);border-top-color:#3B82F6;' +
-    'border-radius:50%;animation:sp .7s linear infinite}' +
-    '.badge.done{border:2px solid #3B82F6}' +
-    '.chk{width:15px;height:15px;fill:none;stroke:#3B82F6;stroke-width:3;stroke-linecap:round;' +
+    '.badge{width:26px;height:26px;box-sizing:border-box;border:1px solid #3B82F6;border-radius:50%;' +
+    'background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);position:relative;display:flex;' +
+    'align-items:center;justify-content:center}' +
+    '.badge img{width:18px;height:18px}' +
+    '.ring{position:absolute;inset:-2px;border:2px solid transparent;border-top-color:#3B82F6;' +
+    'border-radius:50%;opacity:0;animation:sp .7s linear infinite,fade .2s ease-out forwards}' +
+    '.chk{width:16px;height:16px;fill:none;stroke:#3B82F6;stroke-width:3;stroke-linecap:round;' +
     'stroke-linejoin:round;animation:pop .25s ease-out}' +
     '@keyframes sp{to{transform:rotate(360deg)}}' +
+    '@keyframes fade{to{opacity:1}}' +
     '@keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}';
   const BADGE_LOADING = `<div class="badge"><span class="ring"></span><img src="${NAV_ICON}" alt="Navigator"></div>`;
   const BADGE_DONE = '<div class="badge done"><svg class="chk" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>';
