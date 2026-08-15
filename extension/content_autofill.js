@@ -75,18 +75,25 @@
     removePopover();
     currentField = el;
     host = document.createElement('div');
-    host.style.cssText = 'position:absolute;z-index:2147483647;';
+    // Invisible right-aligned rail: the pill sits at the field's bottom-right and
+    // grows LEFTWARD on hover while its icon stays pinned to the corner. The rail
+    // is pointer-events:none so its empty area never blocks clicks on the page.
+    host.style.cssText = 'position:absolute;z-index:2147483647;display:flex;justify-content:flex-end;align-items:flex-end;width:240px;height:26px;pointer-events:none;';
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `
       <style>
-        .btn{width:26px;height:26px;border-radius:6px;border:1px solid #3B82F6;background:#fff;
-             cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2);padding:0}
-        .btn img{width:18px;height:18px;display:block}
+        .btn{pointer-events:auto;height:26px;display:flex;flex-direction:row-reverse;align-items:center;
+             border-radius:13px;border:1px solid #3B82F6;background:#fff;cursor:pointer;
+             box-shadow:0 1px 4px rgba(0,0,0,.2);overflow:hidden;padding:0;white-space:nowrap;
+             max-width:26px;transition:max-width .22s ease}
+        .btn:hover{max-width:230px}
+        .btn img{width:18px;height:18px;margin:3px;flex:0 0 auto}
+        .btn .lbl{font:600 12px system-ui;color:#3B82F6;padding-right:4px;flex:0 0 auto}
       </style>
-      <button class="btn" title="Fill with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"></button>`;
+      <button class="btn" title="Generate with JobNavigator"><img src="${NAV_ICON}" alt="Navigator"><span class="lbl">Generate with JobNavigator</span></button>`;
     const r = el.getBoundingClientRect();
-    host.style.top = `${window.scrollY + r.top + 4}px`;
-    host.style.left = `${window.scrollX + r.right - 30}px`;
+    host.style.top = `${window.scrollY + r.bottom - 30}px`;   // bottom-right of the field
+    host.style.left = `${window.scrollX + r.right - 240}px`;  // rail's right edge == field's right edge
     document.body.appendChild(host);
     root.querySelector('.btn').addEventListener('click', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
