@@ -12,6 +12,7 @@
   let host = null;      // shadow host for the button
   let popoverHost = null; // shadow host for the review popover
   let currentField = null;
+  const fieldState = new WeakMap(); // el -> { text, error, busy, promise, maxChars } — persisted per field
 
   const isAnswerField = (el) => {
     if (!el || el.readOnly || el.disabled) return false;
@@ -111,18 +112,15 @@
 
   function onGenerate(el) {
     const fieldMax = maxCharsFor(el);
-    // Open the popover immediately (with a loader) and generate inside it — don't
-    // block on the endpoint before showing anything.
-    showPopover(el, {
-      question: questionFor(el),
-      company: pageCompany(),
-      position: pagePosition(),
-      fieldMax,
-      maxChars: fieldMax || DEFAULT_LEN,   // detected field limit, else the popup default
-    });
+    let st = fieldState.get(el);
+    if (!st) {
+      st = { text: null, error: null, busy: false, promise: null, maxChars: fieldMax || DEFAULT_LEN };
+      fieldState.set(el, st);
+    }
+    showPopover(el, { question: questionFor(el), company: pageCompany(), position: pagePosition(), fieldMax }, st);
   }
 
-  function showPopover(el, ctx) {
+  function showPopover(el, ctx, st) {
     removeButton();
     removePopover();
     // While the popover is open, the field is no longer "current" for the
@@ -153,7 +151,7 @@
       <div class="card">
         <textarea id="ans" readonly placeholder="Generating…"></textarea>
         <div class="row">
-          <label>Length <input id="len" type="number" min="50" max="4000" step="50" value="${ctx.maxChars}"> chars</label>
+          <label>Length <input id="len" type="number" min="50" max="4000" step="50" value="${st.maxChars}"> chars</label>
           <button class="primary" id="insert" disabled>Insert</button>
           <button class="ghost" id="copy" disabled>Copy</button>
           <button class="ghost" id="save" disabled>Save to bank</button>
@@ -172,8 +170,8 @@
     const lenInp = root.getElementById('len');
     const saveBtn = root.getElementById('save');
     const actionBtns = ['insert', 'copy', 'save', 'regen'].map(id => root.getElementById(id));
-    const upd = () => { count.textContent = `${ta.value.length}/${ctx.maxChars}`; };
-    ta.addEventListener('input', upd);
+    const upd = () => { count.textContent = `${ta.value.length}/${st.maxChars}`; };
+    ta.addEventListener('input', () => { upd(); st.text = ta.value; });  // persist edits per field
     // Focus so the popover keeps focus (the button that opened it was just removed;
     // otherwise the focusout handler tears the popover down ~150ms later).
     ta.focus();
@@ -181,26 +179,36 @@
     const setBusy = (busy) => {
       actionBtns.forEach(b => { b.disabled = busy; });
       ta.readOnly = busy;
-      if (busy) { ta.value = ''; count.innerHTML = '<span class="spin"></span>generating…'; }
+      if (busy) { ta.value = ''; count.innerHTML = '<span class="spin"></span>Generating…'; }
+    };
+
+    const render = () => {
+      setBusy(false);
+      if (st.text != null) { ta.value = st.text; upd(); ta.focus(); }
+      else { ta.value = ''; count.textContent = 'Failed: ' + (st.error || 'unknown'); }
     };
 
     const generate = async () => {
       setBusy(true);
       // Keep focus in the popover: setBusy disables the action buttons, and if one
       // (e.g. Regenerate) was focused, blurring it would drop focus to <body> and the
-      // focusout handler would close the popover mid-generation. The textarea stays
-      // focusable while readOnly.
+      // focusout handler would close the popover mid-generation.
       ta.focus();
       saveBtn.textContent = 'Save to bank';
-      const resp = await chrome.runtime.sendMessage({
+      st.busy = true; st.text = null; st.error = null;
+      const p = chrome.runtime.sendMessage({
         type: 'autofill_generate',
         question: ctx.question, company: ctx.company, position: ctx.position,
-        max_chars: ctx.maxChars,
+        max_chars: st.maxChars,
       });
-      if (popoverHost !== pop) return;  // popover was closed while generating
-      setBusy(false);
-      if (resp && resp.answer) { ta.value = resp.answer; upd(); ta.focus(); }
-      else { ta.value = ''; count.textContent = 'Failed: ' + ((resp && resp.error) || 'unknown'); }
+      st.promise = p;
+      const resp = await p;
+      // Store the result on the field even if this popover was closed meanwhile,
+      // so reopening the same field shows it instead of regenerating from scratch.
+      st.busy = false;
+      if (resp && resp.answer) { st.text = resp.answer; st.error = null; }
+      else { st.text = null; st.error = (resp && resp.error) || 'unknown'; }
+      if (popoverHost === pop) render();
     };
 
     const close = () => { pop.remove(); if (popoverHost === pop) popoverHost = null; };
@@ -214,13 +222,21 @@
     root.getElementById('regen').onclick = generate;
     lenInp.addEventListener('change', () => {
       const v = parseInt(lenInp.value, 10);
-      if (v > 0) { ctx.maxChars = v; generate(); }
+      if (v > 0) { st.maxChars = v; generate(); }
     });
     document.addEventListener('mousedown', function onOut(ev) {
       if (!pop.contains(ev.target)) { close(); document.removeEventListener('mousedown', onOut); }
     });
 
-    generate();  // kick off the first generation; popover is already visible with the loader
+    // Restore the field's prior state instead of always regenerating.
+    if (st.busy && st.promise) {
+      setBusy(true);                                   // a generation is still in flight
+      st.promise.then(() => { if (popoverHost === pop) render(); });
+    } else if (st.text != null) {
+      render();                                        // show the answer we already have
+    } else {
+      generate();                                      // first time for this field
+    }
   }
 
   function fillField(el, value) {
