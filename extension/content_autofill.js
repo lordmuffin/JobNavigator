@@ -81,7 +81,17 @@
   }
 
   function removeButton() { if (host) { host.remove(); host = null; } }
-  function removePopover() { if (popoverHost) { popoverHost.remove(); popoverHost = null; } }
+  // Any teardown of the popover while its field is still generating leaves a
+  // spinner badge on the field (focusout, click-outside, or being replaced all
+  // route through here — so the "still working" indicator never gets skipped).
+  function removePopover() {
+    if (popoverHost) {
+      const bi = popoverHost._busyInfo;
+      if (bi && bi.st.busy) showBusyBadge(bi.el, bi.key);
+      popoverHost.remove();
+      popoverHost = null;
+    }
+  }
 
   // A field can be generating while its popover is closed — leave a spinner on it.
   const busyBadges = new Map(); // fieldKey -> host
@@ -89,10 +99,10 @@
   function showBusyBadge(el, key) {
     removeBusyBadge(key);
     const b = document.createElement('div');
-    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;';
+    b.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:24px;height:24px;';
     const root = b.attachShadow({ mode: 'open' });
-    root.innerHTML = '<style>.s{width:22px;height:22px;box-sizing:border-box;border:2px solid #3B82F6;' +
-      'border-top-color:transparent;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);' +
+    root.innerHTML = '<style>.s{width:24px;height:24px;box-sizing:border-box;border:3px solid #3B82F6;' +
+      'border-top-color:transparent;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.3);' +
       'animation:sp .7s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}</style><div class="s"></div>';
     const r = el.getBoundingClientRect();
     b.style.top = `${window.scrollY + r.bottom - 29}px`;
@@ -201,6 +211,7 @@
     pop.style.left = `${window.scrollX + r.left}px`;
     document.body.appendChild(pop);
     popoverHost = pop;
+    pop._busyInfo = { el, key, st };  // lets removePopover() badge the field if torn down mid-generation
 
     const ta = root.getElementById('ans');
     const count = root.getElementById('count');
@@ -249,9 +260,8 @@
       if (popoverHost === pop) render();
     };
 
-    // Closing while a generation is in flight leaves a spinner badge on the field
-    // so the user can see it's still being worked on.
-    const close = () => { if (st.busy) showBusyBadge(el, key); pop.remove(); if (popoverHost === pop) popoverHost = null; };
+    // Route through removePopover so the busy badge (if generating) is shown.
+    const close = () => { if (popoverHost === pop) removePopover(); else pop.remove(); };
     root.getElementById('insert').onclick = () => { fillField(el, ta.value); close(); };
     root.getElementById('copy').onclick = () => navigator.clipboard.writeText(ta.value);
     saveBtn.onclick = async () => {
