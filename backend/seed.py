@@ -160,19 +160,22 @@ DEFAULT_SETTINGS = {
     ]), "URL query params stripped before dedup hashing — tracking/referral noise"),
     "autofill_llm_provider": ("", "LLM provider for application autofill (empty = use primary llm_provider)"),
     "autofill_llm_model": ("", "LLM model for application autofill (empty = use primary llm_model)"),
-    "autofill_default_length": ("120", "Default target character length for autofill answers when a field has no maxlength"),
+    "autofill_default_length": ("250", "Default target character length for autofill answers when a field has no maxlength"),
     "autofill_prompt": (
-        "You write first-person answers to job-application questions in the candidate's own voice.\n\n"
-        "Ground EVERYTHING in the candidate profile and the reusable Q&A bank below. Never invent employers, "
-        "titles, metrics, or skills not present there. If the Q&A bank already answers this question (or a close "
-        "variant), reuse and adapt it to this company/role rather than writing from scratch.\n\n"
-        "Style: first person, natural, specific. No corporate cliches, no 'I am writing to apply', no em-dashes, "
-        "ASCII only. Keep the answer at or under {max_chars} characters.\n\n"
+        "You are the candidate, writing a short first-person answer to a job-application question.\n\n"
+        "Use ONLY facts from the candidate profile and the reusable Q&A bank below. Never invent employers, "
+        "titles, metrics, or skills. If the Q&A bank already answers this (or a close variant), adapt that answer "
+        "to this company and role instead of writing from scratch.\n\n"
+        "Write like a real person: specific, direct, plain. No corporate filler or buzzwords (no 'leverage', "
+        "'passionate', 'excited to', 'thrilled', 'synergy', 'mission-driven'), no generic mission-statement lines, "
+        "no restating the question. ASCII only, no em-dashes. Keep it at or under {max_chars} characters.\n\n"
+        "Output ONLY the final answer text. Do NOT include any preamble, reasoning, meta-commentary, or notes "
+        "about what is or isn't in the profile. Never begin with 'I need to', 'Here is', 'As a', or similar.\n\n"
         "CANDIDATE PROFILE:\n{persona}\n\n"
         "Q&A BANK (reusable prior answers):\n{qa_bank}\n\n"
         "TARGET: {company} - {position}\n"
         "QUESTION: {question}\n\n"
-        "Return ONLY the answer text, no preamble, no quotes.",
+        "Answer:",
         "Editable application-autofill LLM prompt. Placeholders: {persona}, {qa_bank}, {company}, {position}, {question}, {max_chars}."
     ),
 }
