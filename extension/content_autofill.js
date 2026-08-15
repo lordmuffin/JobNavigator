@@ -175,8 +175,9 @@
     root.getElementById('insert').onclick = () => { fillField(el, ta.value); close(); };
     root.getElementById('copy').onclick = () => navigator.clipboard.writeText(ta.value);
     root.getElementById('save').onclick = async () => {
-      await chrome.runtime.sendMessage({ type: 'autofill_save', question: ctx.question, answer: ta.value });
-      root.getElementById('save').textContent = 'Saved';
+      const resp = await chrome.runtime.sendMessage({ type: 'autofill_save', question: ctx.question, answer: ta.value });
+      const ok = resp && resp.count !== undefined && !resp.error;
+      root.getElementById('save').textContent = ok ? 'Saved' : 'Save failed';
     };
     root.getElementById('regen').onclick = async () => {
       const resp = await chrome.runtime.sendMessage(ctx.payload);

@@ -16,8 +16,11 @@ def _seed(test_db):
 @pytest.fixture(autouse=True)
 def _mock_llm(monkeypatch):
     async def fake(prompt, system, max_tokens=400, cached_prefix=None):
-        # echo back key context so the test can assert it was threaded through
-        assert "Rogo" in prompt and "Why fintech?" in prompt  # company + qa_bank present
+        # prompt (arg1) is the per-question SUFFIX: company/position/question,
+        # but NOT persona/qa_bank (those live only in cached_prefix, once).
+        assert "Rogo" in prompt  # company present in suffix
+        assert "Why fintech?" in (cached_prefix or "")  # qa_bank present in cached prefix
+        assert "Why fintech?" not in prompt  # proves no duplication into the suffix
         return {"text": "Because Rogo is finance and AI.", "usage": {}}
     monkeypatch.setattr("backend.api.routes_autofill.call_autofill_llm", fake, raising=True)
 

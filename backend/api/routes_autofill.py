@@ -62,27 +62,31 @@ async def autofill_answer(body: dict):
     max_chars = int(max_chars) if isinstance(max_chars, (int, str)) and str(max_chars).isdigit() else default_len
 
     # Stable prefix (persona + bank + instructions) is cacheable; the per-question
-    # tail is not. v1 feeds the whole bank; v2 swaps this for top-K retrieval.
-    prompt = (template
-              .replace("{persona}", persona_txt)
-              .replace("{qa_bank}", qa_txt)
+    # suffix (company/position/question) is not. Split at the first {company}
+    # placeholder so the model sees each part exactly once: [cached_prefix, suffix].
+    if "{company}" in template:
+        before, after = template.split("{company}", 1)
+        suffix_template = "{company}" + after
+    else:
+        before, suffix_template = "", template
+
+    cached_prefix = (before
+                     .replace("{persona}", persona_txt)
+                     .replace("{qa_bank}", qa_txt)
+                     .replace("{max_chars}", str(max_chars))) or None
+
+    suffix = (suffix_template
               .replace("{company}", company)
               .replace("{position}", position)
               .replace("{question}", question)
               .replace("{max_chars}", str(max_chars)))
-    # {max_chars} is deliberately NOT substituted here: it must stay out of the
-    # cached prefix so different length limits reuse the same cache entry
-    # (only {persona}/{qa_bank}/instructions are stable across requests).
-    cached_prefix = (template.split("{company}")[0]
-                     .replace("{persona}", persona_txt)
-                     .replace("{qa_bank}", qa_txt))
     system = "You write concise, truthful first-person job-application answers grounded only in the provided profile."
 
     # token budget: ~ chars/3 + headroom
     max_tokens = max(120, min(800, max_chars // 2 + 120))
     try:
         async with track_llm_call("autofill", provider, model) as tracker:
-            resp = await call_autofill_llm(prompt, system, max_tokens=max_tokens,
+            resp = await call_autofill_llm(suffix, system, max_tokens=max_tokens,
                                            cached_prefix=cached_prefix)
             tracker.usage = resp.get("usage", tracker.usage)
         answer = (resp.get("text") or "").strip().strip('"')
