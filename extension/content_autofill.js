@@ -12,7 +12,7 @@
   let host = null;      // shadow host for the button
   let popoverHost = null; // shadow host for the review popover
   let currentField = null;
-  const fieldState = new WeakMap(); // el -> { text, error, busy, promise, maxChars } — persisted per field
+  const fieldState = new Map(); // fieldKey(el) -> { text, error, busy, promise, maxChars } — keyed by a stable id so state survives the page re-rendering the field element
 
   const isAnswerField = (el) => {
     if (!el || el.readOnly || el.disabled) return false;
@@ -75,6 +75,11 @@
     return null;  // background/backend applies the default from settings
   }
 
+  function fieldKey(el) {
+    // Stable key so per-field state survives the page re-rendering the element.
+    return el.id || el.name || (questionFor(el) ? 'q:' + questionFor(el) : 'autofill-field');
+  }
+
   function removeButton() { if (host) { host.remove(); host = null; } }
   function removePopover() { if (popoverHost) { popoverHost.remove(); popoverHost = null; } }
 
@@ -112,10 +117,11 @@
 
   function onGenerate(el) {
     const fieldMax = maxCharsFor(el);
-    let st = fieldState.get(el);
+    const key = fieldKey(el);
+    let st = fieldState.get(key);
     if (!st) {
       st = { text: null, error: null, busy: false, promise: null, maxChars: fieldMax || DEFAULT_LEN };
-      fieldState.set(el, st);
+      fieldState.set(key, st);
     }
     showPopover(el, { question: questionFor(el), company: pageCompany(), position: pagePosition(), fieldMax }, st);
   }
