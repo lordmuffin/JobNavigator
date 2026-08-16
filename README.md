@@ -10,7 +10,7 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              JOB DISCOVERY                                  │
+│                               JOB DISCOVERY                                 │
 │                                                                             │
 │   Career Pages          │  Aggregators            │  Chrome Extension       │
 │                         │                         │                         │
@@ -25,9 +25,9 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 │   SmartRecruiters,      │                         │  Save any job from      │
 │   + custom              │  Levels.fyi             │  any page               │
 │                         │                         │                         │
-└─────────────────────────┴──────────┬──────────────┴─────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────┴───────────┬─────────────┴─────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                PROCESSING                                   │
 │                                                                             │
@@ -36,41 +36,41 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 │   H-1B ─────── Company LCA data from MyVisaJobs (cached)                    │
 │   Salary ───── Extracted from posting, H-1B data, description               │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                 JOB FEED                                    │
 │                                                                             │
 │   Review ───── Dynamic filters, sorting, detail panel                       │
 │   Decide ───── Save promising jobs, skip the rest, score with AI            │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                             AI RESUME SCORING                               │
+│                              AI RESUME SCORING                              │
 │                                                                             │
-│   Providers ── Claude API, Claude CLI, OpenAI, Ollama, OpenAI-compatible    │
+│   Providers ── Claude API, Claude CLI, OpenAI, Ollama                       │
 │   Depths ───── Light (scores only) or Full (report + keyword analysis)      │
 │   Multi ────── Score against multiple resumes, compare fit per role         │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          RESUME + COVER LETTER                              │
+│                           RESUME + COVER LETTER                             │
 │                                                                             │
 │   Templates ── 8 resume + 8 cover-letter, auto-discovered (add your own)    │
 │   AI Tailor ── Rewrites resume bullets/keywords from the scoring report     │
 │   AI Letter ── Job-specific cover letters from resume + JD, voice presets   │
-│   Export ───── PDF via Playwright, page count indicator                     │
+│   Export ───── Live-preview PDF via Playwright with export                  │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                                  TRACK                                      │
+│                                   TRACK                                     │
 │                                                                             │
 │   Tracer ───── Unique links per resume/letter, tracks who opened them       │
 │   Gmail ────── Auto-detects responses, updates application status           │
