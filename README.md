@@ -1,6 +1,6 @@
 # JobNavigator
 
-Self-hosted job search automation — scrape any career portal or use job aggregator, AI scoring against your profile, resume tailoring with custom themes, Telegram notifications and tracking in one system. 
+Self-hosted job search automation — scrape any career portal or use job aggregator, AI scoring against your profile, resume tailoring with custom themes, persona-based application auto-fill, Telegram notifications and tracking in one system. 
 
 <p align="center">
   <img src="docs/jobnavigator.gif" alt="JobNavigator Demo" width="100%">
@@ -12,20 +12,20 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              JOB DISCOVERY                                  │
 │                                                                             │
-│   Career Pages        │  Aggregators            │  Chrome Extension         │
-│                       │                         │                           │
-│   Any site via        │  JobSpy: LinkedIn,      │  Passive LinkedIn         │
-│   Playwright          │  Indeed, ZipRecruiter,  │  capture while            │
-│                       │  Google Jobs            │  browsing                 │
-│   11 ATS endpoints:   │                         │                           │
-│   Workday, Greenhouse │  LinkedIn Personal      │  Save any job from        │
-│   Lever, Ashby,       │  collections            │  any page                 │
-│   Oracle, Phenom,     │                         │                           │
-│   TalentBrew, Rippling│  Levels.fyi             │                           │
-│   SmartRecruiters,    │                         │                           │
-│   + custom            │                         │                           │
-│                       │                         │                           │
-└───────────────────────┴────────────┬────────────┴───────────────────────────┘
+│   Career Pages          │  Aggregators            │  Chrome Extension       │
+│                         │                         │                         │
+│   Any site via          │  JobSpy: LinkedIn,      │  Passive LinkedIn       │
+│   Playwright            │  Indeed, ZipRecruiter,  │  capture while          │
+│                         │  Google Jobs            │  browsing               │
+│   11 ATS endpoints:     │                         │                         │
+│   Workday, Greenhouse   │  LinkedIn Personal      │  Auto-fill based on     │
+│   Lever, Ashby,         │  collections            │  your persona input     │
+│   Oracle, Phenom,       │                         │  and question bank      │
+│   TalentBrew, Rippling  │  Jobright.ai            │                         │
+│   SmartRecruiters,      │                         │  Save any job from      │
+│   + custom              │  Levels.fyi             │  any page               │
+│                         │                         │                         │
+└─────────────────────────┴──────────┬──────────────┴─────────────────────────┘
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -124,7 +124,7 @@ Open `http://localhost`. On first run, click "Sign In" with a blank API key to p
 **What it does:**
 - **Unblocks the Job Feed preview.** Strips frame-blocking headers (`X-Frame-Options` / CSP `frame-ancestors`) so job postings render in the in-app `iframe` preview pane instead of showing blank.
 - **Captures your LinkedIn collections.** As you browse your personalized **Recommended** and **Top Applicant** collections (`linkedin.com/jobs/collections/*`), it passively collects the job IDs, then imports them into the Job Feed with full details (title, company, description, real apply URL).
-- **Fills application answers.** On any job site, focus a free-text question and click the Navigator button to generate a first-person answer grounded in your **Persona** + saved **Q&A bank** (no résumé text). Review it with a length picker, then insert, copy, or save it back to the bank. Enable it with the **Application Autofill** toggle in the popup, and fill out your Persona (`/persona`) first so answers have something to ground on. Configure the model/prompt in **Settings → AI**.
+- **Fills application answers.** On any job site, focus a free-text question and click the Navigator button to generate a first-person answer based on your **Persona** + saved **Q&A bank**. Enable it with the **Application Autofill** toggle in the popup, and fill out your Persona (`/persona`) first so answers have something to ground on. Configure the model/prompt in **Settings → AI**.
 
 **Install:**
 1. `chrome://extensions/` → Developer mode → Load unpacked → select `extension/`
