@@ -395,29 +395,31 @@ export default function SettingsPage() {
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
               <p className="font-semibold mb-1.5">How scoring works</p>
-              <p className="mb-1.5"><b>Primary → Fallback</b> — scores with the Primary model; on error/rate-limit it retries with the Fallback (fallback is scoring-only). Primary is the shared default from <b>AI Models &amp; Providers</b>.</p>
+              <p className="mb-1.5"><b>Scoring LLM → Fallback</b> — scores with the Scoring LLM (empty = the shared Primary); on error/rate-limit it retries with the Fallback (scoring-only).</p>
               <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
               <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
               <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
             </div>
           </div>
         </div>
-        {/* Scoring uses the Primary model, and — uniquely — falls back to a Secondary on error. */}
+        {/* Scoring provider/model — empty = use Primary. Falls back to the Fallback below on error. */}
         {(() => {
           const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
-          const provider = settings.llm_provider || 'claude_api'
-          const filtered = models.filter(m => m.provider === provider)
-          const currentModel = settings.llm_model || ''
+          const scProvider = settings.scoring_llm_provider || ''
+          const effProvider = scProvider || settings.llm_provider || 'claude_api'
+          const filtered = models.filter(m => m.provider === effProvider)
+          const currentModel = settings.scoring_llm_model || ''
           const currentInList = filtered.some(m => m.model === currentModel)
           return (
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Primary LLM <span className="font-normal text-gray-400">(shared default — set in AI Models &amp; Providers)</span></label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Scoring LLM <span className="font-normal text-gray-400">(empty = use Primary)</span></label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Provider</label>
-                  <select value={provider}
-                    onChange={e => { setSettings(p => ({...p, llm_provider: e.target.value})); saveSetting('llm_provider', e.target.value) }}
+                  <select value={scProvider}
+                    onChange={e => { setSettings(p => ({...p, scoring_llm_provider: e.target.value})); saveSetting('scoring_llm_provider', e.target.value) }}
                     className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <option value="">Use Primary</option>
                     <option value="claude_api">Claude API (Anthropic)</option>
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
@@ -428,13 +430,28 @@ export default function SettingsPage() {
                 <div>
                   <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Model</label>
                   <select value={currentModel}
-                    onChange={e => { setSettings(p => ({...p, llm_model: e.target.value})); saveSetting('llm_model', e.target.value) }}
+                    onChange={e => { setSettings(p => ({...p, scoring_llm_model: e.target.value})); saveSetting('scoring_llm_model', e.target.value) }}
                     className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <option value="">Use Primary</option>
                     {!currentInList && currentModel && <option value={currentModel}>Custom: {currentModel}</option>}
                     {filtered.map(m => <option key={m.model} value={m.model}>{m.label || m.model}</option>)}
                   </select>
                 </div>
               </div>
+              {scProvider && !['claude_code', 'ollama'].includes(scProvider) && (
+                <div className="mt-2">
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">API Key</label>
+                  <div className="relative">
+                    <input type={showPw.scoring_llm_api_key ? 'text' : 'password'} autoComplete="off" value={settings.scoring_llm_api_key || ''}
+                      onChange={e => setSettings(p => ({...p, scoring_llm_api_key: e.target.value}))}
+                      onBlur={e => saveSetting('scoring_llm_api_key', e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full pr-8 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+                    <button type="button" onClick={() => togglePw('scoring_llm_api_key')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      {showPw.scoring_llm_api_key ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )
         })()}
