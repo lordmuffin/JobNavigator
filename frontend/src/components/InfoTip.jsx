@@ -12,7 +12,7 @@ export default function InfoTip({ title, children, width = 'w-80' }) {
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
   return (
-    <div className="relative inline-block" ref={ref}>
+    <div className="relative flex items-center" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
         title={title || 'What is this?'}
