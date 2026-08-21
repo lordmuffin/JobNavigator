@@ -44,6 +44,9 @@ DEFAULT_SETTINGS = {
     "llm_fallback_provider": ("", "Fallback LLM provider (empty = no fallback)"),
     "llm_fallback_model": ("", "Fallback model name"),
     "llm_fallback_api_key": ("", "API key for fallback provider (OpenAI)"),
+    "scoring_llm_provider": ("", "Resume scoring provider override (empty = use Primary)"),
+    "scoring_llm_model": ("", "Resume scoring model override (empty = use Primary)"),
+    "scoring_llm_api_key": ("", "API key for the scoring provider override"),
     "llm_models_list": (json.dumps([
         {"provider": "claude_api", "model": "claude-sonnet-5"},
         {"provider": "claude_api", "model": "claude-sonnet-4-6"},
@@ -79,6 +82,19 @@ DEFAULT_SETTINGS = {
         {"provider": "ollama", "model": "mistral:7b"},
         {"provider": "ollama", "model": "gemma2:9b"},
         {"provider": "ollama", "model": "phi3:14b"},
+        # OpenRouter — one key reaches every vendor; slugs are vendor-prefixed.
+        # A popular starter set; the full ~420 are fetchable in Settings via the API.
+        {"provider": "openrouter", "model": "anthropic/claude-opus-5"},
+        {"provider": "openrouter", "model": "anthropic/claude-sonnet-5"},
+        {"provider": "openrouter", "model": "openai/gpt-5.6-luna"},
+        {"provider": "openrouter", "model": "openai/o3-pro"},
+        {"provider": "openrouter", "model": "openai/o4-mini-high"},
+        {"provider": "openrouter", "model": "google/gemini-3.7-flash"},
+        {"provider": "openrouter", "model": "deepseek/deepseek-v4-pro"},
+        {"provider": "openrouter", "model": "deepseek/deepseek-v3.2"},
+        {"provider": "openrouter", "model": "meta-llama/llama-4-maverick"},
+        {"provider": "openrouter", "model": "x-ai/grok-4.6"},
+        {"provider": "openrouter", "model": "mistralai/mistral-large-2512"},
     ]), "Known LLM models per provider (JSON array, user can add custom entries)"),
     "scoring_max_concurrent": ("5", "Max parallel scoring jobs (others queue until a slot opens)"),
     "tailoring_max_concurrent": ("2", "Max concurrent resume-tailoring LLM calls"),
@@ -500,31 +516,48 @@ def migrate_llm_settings(db):
     - Re-point any provider setting still on openai_compat to openai.
     - Rename the dated claude-haiku-4-5-20251001 model setting values to the alias.
     """
+    # Additive seed: default models are offered ONCE (tracked in llm_seeded_models).
+    # After that the user's list is authoritative — deleting a default keeps it gone
+    # across restarts, while genuinely-new defaults still propagate to existing installs.
     row = db.query(Setting).filter(Setting.key == "llm_models_list").first()
+    seen_row = db.query(Setting).filter(Setting.key == "llm_seeded_models").first()
+    if seen_row is None:
+        seen_row = Setting(key="llm_seeded_models", value="[]",
+                           description="Internal: default model keys already offered, so user deletions persist across restarts")
+        db.add(seen_row)
     if row and row.value:
         try:
             current = json.loads(row.value)
         except (ValueError, TypeError):
             current = []
+        current = [m for m in current if m.get("provider") != "openai_compat"]
         default_list = json.loads(DEFAULT_SETTINGS["llm_models_list"][0])
-        custom = [m for m in current
-                  if m.get("custom") and m.get("provider") != "openai_compat"]
-        merged = default_list + [m for m in custom
-                                 if not any(d["provider"] == m.get("provider")
-                                            and d["model"] == m.get("model")
-                                            for d in default_list)]
-        if merged != current:
-            row.value = json.dumps(merged)
+        try:
+            seen = set(json.loads(seen_row.value or "[]"))
+        except (ValueError, TypeError):
+            seen = set()
+        mkey = lambda m: f'{m.get("provider")}|{m.get("model")}'
+        have = {mkey(m) for m in current}
+        for d in default_list:
+            dk = mkey(d)
+            if dk not in seen and dk not in have:  # new default the user never removed
+                current.append(d)
+                have.add(dk)
+            seen.add(dk)
+        seen_row.value = json.dumps(sorted(seen))
+        row.value = json.dumps(current)
 
     provider_keys = ["llm_provider", "llm_fallback_provider", "email_llm_provider",
-                     "cv_tailor_llm_provider", "cover_letter_llm_provider", "autofill_llm_provider"]
+                     "cv_tailor_llm_provider", "cover_letter_llm_provider", "autofill_llm_provider",
+                     "scoring_llm_provider"]
     for key in provider_keys:
         r = db.query(Setting).filter(Setting.key == key).first()
         if r and r.value == "openai_compat":
             r.value = "openai"
 
     model_keys = ["llm_model", "llm_fallback_model", "email_llm_model",
-                  "cv_tailor_llm_model", "cover_letter_llm_model", "autofill_llm_model"]
+                  "cv_tailor_llm_model", "cover_letter_llm_model", "autofill_llm_model",
+                  "scoring_llm_model"]
     for key in model_keys:
         r = db.query(Setting).filter(Setting.key == key).first()
         if r and r.value == "claude-haiku-4-5-20251001":

@@ -44,7 +44,7 @@ def scorer_db(monkeypatch):
 
 
 def _llm_returning(text):
-    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None):
+    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None, **kwargs):
         return {"text": text,
                 "usage": {"input_tokens": 1, "output_tokens": 1,
                           "cache_read_tokens": 0, "cache_write_tokens": 0}}

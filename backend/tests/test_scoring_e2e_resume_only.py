@@ -38,7 +38,7 @@ async def test_score_unscored_jobs_uses_resumes(test_db, monkeypatch):
     test_db.commit()
 
     # Stub the LLM to return a deterministic score keyed by Resume name
-    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None):
+    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None, **kwargs):
         return {
             "text": '{"scores":{"PM":78},"best_cv":"PM"}',
             "usage": {"input_tokens": 100, "output_tokens": 20,

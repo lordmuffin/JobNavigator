@@ -274,10 +274,14 @@ async def _score_job_inner(job: Job, cv_texts: dict, db=None, depth="light", pre
         schema_key = "scoring_output_full" if depth == "full" else "scoring_output_light"
         schema_row = settings_db.query(Setting).filter(Setting.key == schema_key).first()
         output_schema = schema_row.value if schema_row and schema_row.value else ""
-        model_row = settings_db.query(Setting).filter(Setting.key == "llm_model").first()
-        model_for_log = model_row.value if model_row and model_row.value else "claude-sonnet-5"
-        provider_row = settings_db.query(Setting).filter(Setting.key == "llm_provider").first()
-        provider_for_log = provider_row.value if provider_row and provider_row.value else "claude_api"
+        def _sv(k, d=""):
+            r = settings_db.query(Setting).filter(Setting.key == k).first()
+            return (r.value if r and r.value else d)
+        # Scoring can override the Primary model (empty = use Primary). The Fallback
+        # (llm_fallback_*) is applied inside call_llm regardless.
+        provider_for_log = _sv("scoring_llm_provider") or _sv("llm_provider", "claude_api")
+        model_for_log = _sv("scoring_llm_model") or _sv("llm_model", "claude-sonnet-5")
+        scoring_api_key = _sv("scoring_llm_api_key") or _sv("llm_api_key")
         cache_row = settings_db.query(Setting).filter(Setting.key == "prompt_caching_enabled").first()
         caching_enabled = (cache_row.value if cache_row else "true").strip().lower() == "true"
     finally:
@@ -322,7 +326,8 @@ async def _score_job_inner(job: Job, cv_texts: dict, db=None, depth="light", pre
         # Honor the prompt_caching_enabled setting — setting cached_prefix=None disables
         # the cache_control block on the Anthropic request, so caching is fully off.
         effective_prefix = cached_prefix if caching_enabled else None
-        resp = await call_llm(user_prompt, system_msg, max_tokens, cached_prefix=effective_prefix)
+        resp = await call_llm(user_prompt, system_msg, max_tokens, cached_prefix=effective_prefix,
+                              provider=provider_for_log, model=model_for_log, api_key=scoring_api_key)
         text = resp["text"]
         usage = resp.get("usage", usage)
 

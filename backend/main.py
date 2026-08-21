@@ -19,6 +19,7 @@ from backend.api.routes_resumes import router as resumes_router
 from backend.api.routes_persona import router as persona_router
 from backend.api.routes_cover_letters import router as cover_letters_router
 from backend.api.routes_autofill import router as autofill_router
+from backend.api.routes_llm import router as llm_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("jobnavigator")
@@ -214,6 +215,7 @@ app.include_router(resumes_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
 app.include_router(cover_letters_router, prefix="/api")
 app.include_router(autofill_router, prefix="/api")
+app.include_router(llm_router, prefix="/api")
 
 
 @app.get("/health", tags=["system"], summary="Health check")

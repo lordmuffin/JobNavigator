@@ -12,17 +12,26 @@ def _get_setting(db, key, default=""):
 
 
 async def call_llm(prompt: str, system: str, max_tokens: int = 1200,
-                   cached_prefix: str | None = None) -> dict:
+                   cached_prefix: str | None = None,
+                   provider: str | None = None, model: str | None = None,
+                   api_key: str | None = None) -> dict:
     """Route to configured LLM provider with retry + automatic fallback.
-    Returns {text, usage} dict. Pass cached_prefix to enable prompt caching on Claude API."""
+    Returns {text, usage} dict. Pass cached_prefix to enable prompt caching on Claude API.
+
+    provider/model/api_key override the Primary for this call (used by resume scoring's
+    optional per-feature override); when None they fall back to the llm_* settings.
+    The Fallback (llm_fallback_*) is always read from settings."""
     MAX_ATTEMPTS = 4
     BACKOFF_BASE = 2  # seconds: 2, 4, 8
 
     db = SessionLocal()
     try:
-        provider = _get_setting(db, "llm_provider", "claude_api")
-        model = _get_setting(db, "llm_model", "claude-sonnet-5")
-        api_key = _get_setting(db, "llm_api_key", "")
+        if provider is None:
+            provider = _get_setting(db, "llm_provider", "claude_api")
+        if model is None:
+            model = _get_setting(db, "llm_model", "claude-sonnet-5")
+        if api_key is None:
+            api_key = _get_setting(db, "llm_api_key", "")
         fallback_provider = _get_setting(db, "llm_fallback_provider", "")
         fallback_model = _get_setting(db, "llm_fallback_model", "")
         fb_api_key = _get_setting(db, "llm_fallback_api_key", "")
@@ -188,6 +197,11 @@ async def _dispatch(provider: str, model: str, api_key: str,
         return await _call_claude_code(combined, system, model, max_tokens)
     elif provider == "openai":
         return await _call_openai(combined, system, model, api_key, max_tokens)
+    elif provider == "openrouter":
+        # OpenRouter is OpenAI-API-compatible — same client, different base URL.
+        # One key reaches every vendor's models (model slug is vendor-prefixed).
+        return await _call_openai(combined, system, model, api_key, max_tokens,
+                                  base_url="https://openrouter.ai/api/v1")
     elif provider == "ollama":
         return await _call_ollama(combined, system, model, max_tokens)
     else:
@@ -274,10 +288,12 @@ async def _call_claude_code(prompt: str, system: str, model: str, max_tokens: in
     }
 
 
-async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int) -> dict:
-    """Call the OpenAI API. Returns {text, usage}."""
+async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int,
+                       base_url: str | None = None) -> dict:
+    """Call the OpenAI API (or any OpenAI-compatible endpoint via base_url).
+    Returns {text, usage}."""
     from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=api_key)
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)  # base_url=None → OpenAI default
     response = await client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,

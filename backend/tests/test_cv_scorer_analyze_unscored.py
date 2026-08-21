@@ -105,7 +105,7 @@ async def test_analyze_unscored_jobs_only_scores_entities_with_auto_scoring(scor
 
     scored_markers = []
 
-    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None):
+    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None, **kwargs):
         if "SCORE_ME_ON" in prompt:
             scored_markers.append("on")
         if "SCORE_ME_OFF" in prompt:
@@ -160,7 +160,7 @@ async def test_analyze_unscored_skips_jobs_with_no_text(scorer_ready_db, monkeyp
 
     call_llm_invocations = []
 
-    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None):
+    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None, **kwargs):
         call_llm_invocations.append(True)
         return {
             "text": '{"scores":{"Default":75},"best_cv":"Default"}',
@@ -205,7 +205,7 @@ async def test_analyze_unscored_uses_default_cv_when_no_selected(scorer_ready_db
 
     captured = {}
 
-    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None):
+    async def fake_call_llm(prompt, system, max_tokens, cached_prefix=None, **kwargs):
         captured["prefix"] = cached_prefix or ""
         return {
             "text": '{"scores":{"Default":75},"best_cv":"Default"}',
