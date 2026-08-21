@@ -24,6 +24,7 @@ const SOURCE_COLORS = {
   levels_fyi: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
   linkedin_personal: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
   jobright: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+  freehire: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
 }
 
 const DEFAULT_FORM = {
@@ -215,6 +216,7 @@ export default function SearchManager() {
               <option value="levels_fyi">Levels.fyi</option>
               <option value="linkedin_personal">LinkedIn Personal</option>
               <option value="jobright">Jobright.ai</option>
+              <option value="freehire">freehire.me</option>
             </select>
           )}
         </div>
@@ -280,6 +282,24 @@ export default function SearchManager() {
             <input type="text" value={ed.search_term} onChange={e => setEd({ search_term: e.target.value })}
               placeholder="e.g. technical program manager" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
           </div>
+        ) : ed.search_mode === 'freehire' ? (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Search Term <span className="text-gray-400">(optional — forwarded as q)</span></label>
+              <input type="text" value={ed.search_term} onChange={e => setEd({ search_term: e.target.value })}
+                placeholder="e.g. golang backend" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">freehire.me URL <span className="text-gray-400">(optional — its filters are forwarded)</span></label>
+              <input type="text" value={ed.direct_url} onChange={e => setEd({ direct_url: e.target.value })}
+                placeholder="https://freehire.me/?q=engineer&category=backend&is_tech=tech" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Results Wanted</label>
+              <input type="number" value={ed.results_wanted} onChange={e => setEd({ results_wanted: parseInt(e.target.value) || 100 })}
+                min={1} className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+            </div>
+          </>
         ) : (
           <div className={ed.search_mode === 'levels_fyi' ? 'col-span-2' : ''}>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -299,7 +319,7 @@ export default function SearchManager() {
               min={1} max={100} className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
           </div>
         )}
-        {ed.search_mode !== 'levels_fyi' && ed.search_mode !== 'linkedin_personal' && ed.search_mode !== 'jobright' && !isExtensionMode(ed.search_mode) && (
+        {ed.search_mode !== 'levels_fyi' && ed.search_mode !== 'linkedin_personal' && ed.search_mode !== 'jobright' && ed.search_mode !== 'freehire' && !isExtensionMode(ed.search_mode) && (
           <>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Location</label>
