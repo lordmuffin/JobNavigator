@@ -289,7 +289,7 @@ export default function SearchManager() {
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Search Term <span className="text-gray-400">(optional — ANDed with the URL as q)</span></label>
               <input type="text" value={ed.search_term} onChange={e => setEd({ search_term: e.target.value })}
                 placeholder="e.g. golang backend" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Leave blank if your URL already has your filters. A term narrows further, and must appear in the posting text — e.g. URL role=backend + term <code>kafka</code>.</p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Leave blank if your URL already has your filters. A term narrows further, and must appear in the posting text.</p>
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">freehire.me URL <span className="text-gray-400">(optional — its filters are forwarded)</span></label>
