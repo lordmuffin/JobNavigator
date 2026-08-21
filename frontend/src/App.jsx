@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { Briefcase, LayoutDashboard, Building2, Search, Settings, BarChart3, FileCode2, FileText, User, Mail } from 'lucide-react'
+import { Briefcase, LayoutDashboard, Building2, Search, Settings, BarChart3, FileCode2, FileText, User, Mail, ChevronLeft, ChevronRight } from 'lucide-react'
 import JobFeed from './components/JobFeed'
 import ApplicationBoard from './components/ApplicationBoard'
 import CompanyManager from './components/CompanyManager'
@@ -83,23 +83,30 @@ function App() {
     <BrowserRouter>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-56' : 'w-16'} bg-slate-900 text-white flex flex-col transition-all duration-200`}>
-          <div className="p-4 flex items-center gap-2 border-b border-slate-700">
-            <span className="text-xl">&#128188;</span>
-            {sidebarOpen && <span className="font-bold text-lg">JobNavigator</span>}
+        <aside className={`${sidebarOpen ? 'w-56' : 'w-16'} bg-slate-900 text-white flex flex-col transition-all duration-200 overflow-hidden`}>
+          {/* Fixed w-16 icon rail = collapsed width, so icons never shift between
+              states and labels clip-reveal cleanly (aside is overflow-hidden). */}
+          <div className="flex items-center h-14 border-b border-slate-700 whitespace-nowrap">
+            <span className="w-16 flex-shrink-0 flex items-center justify-center text-xl">&#128188;</span>
+            <span className={`font-bold text-lg transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>JobNavigator</span>
           </div>
           <nav className="flex-1 py-2">
-            {NAV_ITEMS.map(({ to, icon: Icon, label, external }) => (
-              external ? (
+            {NAV_ITEMS.map(({ to, icon: Icon, label, external }) => {
+              const inner = (
+                <>
+                  <span className="w-16 flex-shrink-0 flex items-center justify-center"><Icon size={18} /></span>
+                  <span className={`transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
+                </>
+              )
+              return external ? (
                 <a
                   key={to}
                   href={to}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-slate-300 hover:bg-slate-800 hover:text-white"
+                  className="flex items-center h-10 whitespace-nowrap text-sm transition-colors text-slate-300 hover:bg-slate-800 hover:text-white"
                 >
-                  <Icon size={18} />
-                  {sidebarOpen && label}
+                  {inner}
                 </a>
               ) : (
                 <NavLink
@@ -107,31 +114,31 @@ function App() {
                   to={to}
                   end={to === '/'}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                    `flex items-center h-10 whitespace-nowrap text-sm transition-colors ${
                       isActive
                         ? 'bg-blue-600 text-white'
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                     }`
                   }
                 >
-                  <Icon size={18} />
-                  {sidebarOpen && label}
+                  {inner}
                 </NavLink>
               )
-            ))}
+            })}
           </nav>
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="px-4 py-2 text-slate-400 hover:text-white text-xs flex items-center gap-2"
+            className="flex items-center h-10 whitespace-nowrap text-slate-400 hover:text-white text-xs"
           >
-            {darkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}
-            {sidebarOpen && (darkMode ? 'Light Mode' : 'Dark Mode')}
+            <span className="w-16 flex-shrink-0 flex items-center justify-center text-base">{darkMode ? '\u2600\uFE0F' : '\uD83C\uDF19'}</span>
+            <span className={`transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-3 text-slate-400 hover:text-white border-t border-slate-700 text-xs"
+            className="flex items-center h-10 whitespace-nowrap text-slate-400 hover:text-white text-xs border-t border-slate-700"
           >
-            {sidebarOpen ? 'Collapse' : '>'}
+            <span className="w-16 flex-shrink-0 flex items-center justify-center">{sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}</span>
+            <span className={`transition-opacity duration-150 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}>Collapse</span>
           </button>
         </aside>
 

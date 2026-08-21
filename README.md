@@ -22,9 +22,9 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 │   Lever, Ashby,         │  collections            │  your persona input     │
 │   Oracle, Phenom,       │                         │  and question bank      │
 │   TalentBrew, Rippling  │  Jobright.ai            │                         │
-│   SmartRecruiters,      │                         │  Save any job from      │
-│   + custom              │  Levels.fyi             │  any page               │
-│                         │  freehire.me            │                         │
+│   SmartRecruiters,      │  Levels.fyi             │  Save any job from      │
+│   + custom              │  freehire.me            │  any page               │
+│                         │                         │                         │
 └─────────────────────────┴───────────┬─────────────┴─────────────────────────┘
                                       │
                                       ▼
@@ -61,7 +61,7 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           RESUME + COVER LETTER                             │
 │                                                                             │
-│   Templates ── 8 resume + 8 cover-letter, auto-discovered (add your own)    │
+│   Templates ── 8 resume + 8 cover-letter, auto-discovered (add your own!)   │
 │   AI Tailor ── Rewrites resume bullets/keywords from the scoring report     │
 │   AI Letter ── Job-specific cover letters from resume + JD, voice presets   │
 │   Export ───── Live-preview PDF via Playwright with export                  │
@@ -83,7 +83,7 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Source Discovery** | 7 scraping tiers: career pages (Playwright + 11 ATS), JobSpy (4 boards), LinkedIn Personal, Levels.fyi, Jobright.ai, freehire.me (open aggregator), Chrome Extension |
+| **Multi-Source Discovery** | 7 scraping tiers: career pages (Playwright + 11 ATS), JobSpy (4 boards), LinkedIn Personal, Levels.fyi, Jobright.ai, freehire.me, Chrome Extension |
 | **AI Resume Scoring** | Multi-provider (Claude, OpenAI, Ollama), light/full depth, per-resume comparison, keyword analysis, requirement mapping, ATS tips. **Prompt caching** on Anthropic cuts repeat-scoring cost ~50%. |
 | **Resume Builder** | 8 templates (auto-discovered - add yours), AI tailoring per job, PDF export, tracer links to track opens (cover letters too) |
 | **Cover Letters** | AI-generated per job, grounded in the paired resume + persona; editable voice presets, 8 templates, PDF export, prompt-cached generation |
