@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api'
+import InfoTip from './InfoTip'
 import { Plus, Edit2, X, Play, Loader2, ExternalLink, Camera, Power, PowerOff, Tags, FlaskConical } from 'lucide-react'
 
 const TIER_COLORS = { 1: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300', 2: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300', 3: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' }
@@ -261,7 +262,15 @@ export default function CompanyManager() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Company Manager</h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Company Manager</h1>
+          <InfoTip title="Company Manager">
+            Companies scraped directly from their own career pages. Add a company with its ATS URL(s) —
+            Greenhouse, Workday, Lever, Ashby, and more are auto-detected — plus per-company title filters,
+            a scrape interval, and auto-score. <b>Aliases</b> match incoming jobs to the right company.
+            Companies are created only here or when you click <b>Applied</b> on a job — never during scraping.
+          </InfoTip>
+        </div>
         <div className="flex gap-2">
           <button onClick={() => bulkActivate(true)}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-900 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-800"

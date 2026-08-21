@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import api from '../api'
+import InfoTip from './InfoTip'
 import { Plus, Play, Trash2, Edit2, Check, X, FlaskConical, ExternalLink, Loader2 } from 'lucide-react'
 
 const SOURCES = [
@@ -458,7 +459,16 @@ export default function SearchManager() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Search Manager</h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Search Manager</h1>
+          <InfoTip title="Search Manager">
+            Saved job searches that run on a schedule. Each has a <b>mode</b>: keyword boards (JobSpy),
+            Levels.fyi, LinkedIn Personal, Jobright.ai, freehire.me, plus the two passive Chrome-extension
+            captures. Use the <b>flask</b> icon to dry-run (preview + per-job filter diagnostics without
+            saving) and <b>Play</b> to run now. Per-search interval, title/company filters, and auto-score
+            are configurable.
+          </InfoTip>
+        </div>
         <button onClick={() => { setEditing('new'); setEditData({ ...DEFAULT_FORM }) }}
           className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
           <Plus size={14} /> New Search
