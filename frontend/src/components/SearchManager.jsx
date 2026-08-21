@@ -727,7 +727,7 @@ export default function SearchManager() {
                       </span>
                     )}
                     {!isExtensionMode(s.search_mode) && (
-                      <button onClick={() => testSearch(s.id)} disabled={testing === s.id || !['keyword', 'levels_fyi', 'linkedin_personal', 'jobright'].includes(s.search_mode)}
+                      <button onClick={() => testSearch(s.id)} disabled={testing === s.id || !['keyword', 'levels_fyi', 'linkedin_personal', 'jobright', 'freehire'].includes(s.search_mode)}
                         className="p-1.5 rounded hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 disabled:opacity-40" title="Test Search (dry run)">
                         {testing === s.id ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />}
                       </button>
