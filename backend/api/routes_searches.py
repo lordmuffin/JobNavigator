@@ -120,7 +120,7 @@ async def test_search(search_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Search not found")
 
     # Slow modes: launch in background, return run_id for polling
-    if search.search_mode in ("levels_fyi", "linkedin_personal", "jobright"):
+    if search.search_mode in ("levels_fyi", "linkedin_personal", "jobright", "freehire"):
         run_id = str(uuid.uuid4())[:8]
         _test_results[run_id] = {"status": "running", "result": None}
 
@@ -138,6 +138,9 @@ async def test_search(search_id: str, db: Session = Depends(get_db)):
                 elif search.search_mode == "jobright":
                     from backend.scraper.sources.jobright import preview as test_jobright
                     result = await test_jobright(test_search_obj, test_db)
+                elif search.search_mode == "freehire":
+                    from backend.scraper.sources.freehire import preview as test_freehire
+                    result = await test_freehire(test_search_obj, test_db)
                 else:
                     from backend.scraper.sources.linkedin_personal import preview as test_linkedin_personal
                     result = await test_linkedin_personal(test_search_obj, test_db)
@@ -152,7 +155,7 @@ async def test_search(search_id: str, db: Session = Depends(get_db)):
         return JSONResponse(status_code=202, content={"run_id": run_id, "status": "running"})
 
     if search.search_mode != "keyword":
-        raise HTTPException(status_code=400, detail="Test only supports keyword, levels_fyi, linkedin_personal, and jobright searches")
+        raise HTTPException(status_code=400, detail="Test only supports keyword, levels_fyi, linkedin_personal, jobright, and freehire searches")
 
     # ── Keyword (JobSpy) test — runs synchronously ──
     import re
