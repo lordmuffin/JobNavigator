@@ -14,18 +14,24 @@ export default function SettingsPage() {
   const switchTab = (tab) => { setActiveTab(tab); localStorage.setItem('settings_tab', tab) }
   const togglePw = (key) => setShowPw(p => ({...p, [key]: !p[key]}))
 
-  // OpenRouter live model catalog for the "Add Custom Model" typeahead.
+  // Live model catalogs for the "Add Custom Model" typeahead (per provider).
+  const SEARCHABLE_PROVIDERS = ['openrouter', 'openai', 'claude_api']
   const [customProvider, setCustomProvider] = useState('claude_api')
-  const [orModels, setOrModels] = useState([])
-  const [orLoading, setOrLoading] = useState(false)
-  const fetchOpenRouterModels = async () => {
-    if (orModels.length || orLoading) return
-    setOrLoading(true)
+  const [providerModels, setProviderModels] = useState({})   // provider -> [{id,name}]
+  const [modelsLoading, setModelsLoading] = useState({})      // provider -> bool
+  const [modelsError, setModelsError] = useState({})          // provider -> string
+  const fetchProviderModels = async (provider) => {
+    if (!SEARCHABLE_PROVIDERS.includes(provider)) return
+    if (providerModels[provider] || modelsLoading[provider]) return
+    setModelsLoading(p => ({ ...p, [provider]: true }))
+    setModelsError(p => ({ ...p, [provider]: '' }))
     try {
-      const { data } = await api.get('/llm/openrouter-models')
-      setOrModels(data.models || [])
-    } catch (e) { console.error(e) }
-    setOrLoading(false)
+      const { data } = await api.get('/llm/models', { params: { provider } })
+      setProviderModels(p => ({ ...p, [provider]: data.models || [] }))
+    } catch (e) {
+      setModelsError(p => ({ ...p, [provider]: e?.response?.data?.detail || 'Could not load models' }))
+    }
+    setModelsLoading(p => ({ ...p, [provider]: false }))
   }
 
   const fetchAll = async () => {
@@ -358,13 +364,16 @@ export default function SettingsPage() {
           const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
           const customModels = models.filter(m => m.custom)
           const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama', openrouter: 'OpenRouter' }
-          const isOR = customProvider === 'openrouter'
+          const canSearch = SEARCHABLE_PROVIDERS.includes(customProvider)
+          const liveModels = providerModels[customProvider] || []
+          const loadingModels = modelsLoading[customProvider]
+          const modelErr = modelsError[customProvider]
           return (
             <div className="mb-5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Custom Model</label>
               <div className="flex items-center gap-2">
                 <select value={customProvider}
-                  onChange={e => { setCustomProvider(e.target.value); if (e.target.value === 'openrouter') fetchOpenRouterModels() }}
+                  onChange={e => { setCustomProvider(e.target.value); fetchProviderModels(e.target.value) }}
                   className="border rounded px-2 py-1 text-xs dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                   <option value="claude_api">Claude API</option>
                   <option value="claude_code">Claude Code</option>
@@ -372,12 +381,13 @@ export default function SettingsPage() {
                   <option value="ollama">Ollama</option>
                   <option value="openrouter">OpenRouter</option>
                 </select>
-                <input type="text" id="custom-model-name" placeholder={isOR ? 'Search OpenRouter models…' : 'Add custom model...'}
-                  list={isOR ? 'openrouter-model-list' : undefined}
+                <input type="text" id="custom-model-name" placeholder={canSearch ? 'Search live models…' : 'Add custom model...'}
+                  list={canSearch ? 'live-model-list' : undefined}
+                  onFocus={() => fetchProviderModels(customProvider)}
                   className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-                {isOR && (
-                  <datalist id="openrouter-model-list">
-                    {orModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                {canSearch && (
+                  <datalist id="live-model-list">
+                    {liveModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </datalist>
                 )}
                 <button onClick={() => {
@@ -391,11 +401,12 @@ export default function SettingsPage() {
                   input.value = ''
                 }} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
               </div>
-              {isOR && (
+              {canSearch && (
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                  {orLoading ? 'Loading models from OpenRouter…'
-                    : orModels.length ? `${orModels.length} models available — type to search, then Add. Slugs are vendor-prefixed (e.g. anthropic/claude-sonnet-5).`
-                    : 'One OpenRouter key reaches every vendor. Popular models are prefilled in the dropdowns above.'}
+                  {loadingModels ? 'Loading live models…'
+                    : modelErr ? modelErr
+                    : liveModels.length ? `${liveModels.length} models available — type to search, then Add.${customProvider === 'openrouter' ? ' Slugs are vendor-prefixed (e.g. anthropic/claude-sonnet-5).' : ''}`
+                    : 'Type a model name, then Add.'}
                 </p>
               )}
               {customModels.length > 0 && (
