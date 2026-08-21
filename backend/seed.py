@@ -513,21 +513,36 @@ def migrate_llm_settings(db):
     - Re-point any provider setting still on openai_compat to openai.
     - Rename the dated claude-haiku-4-5-20251001 model setting values to the alias.
     """
+    # Additive seed: default models are offered ONCE (tracked in llm_seeded_models).
+    # After that the user's list is authoritative — deleting a default keeps it gone
+    # across restarts, while genuinely-new defaults still propagate to existing installs.
     row = db.query(Setting).filter(Setting.key == "llm_models_list").first()
+    seen_row = db.query(Setting).filter(Setting.key == "llm_seeded_models").first()
+    if seen_row is None:
+        seen_row = Setting(key="llm_seeded_models", value="[]",
+                           description="Internal: default model keys already offered, so user deletions persist across restarts")
+        db.add(seen_row)
     if row and row.value:
         try:
             current = json.loads(row.value)
         except (ValueError, TypeError):
             current = []
+        current = [m for m in current if m.get("provider") != "openai_compat"]
         default_list = json.loads(DEFAULT_SETTINGS["llm_models_list"][0])
-        custom = [m for m in current
-                  if m.get("custom") and m.get("provider") != "openai_compat"]
-        merged = default_list + [m for m in custom
-                                 if not any(d["provider"] == m.get("provider")
-                                            and d["model"] == m.get("model")
-                                            for d in default_list)]
-        if merged != current:
-            row.value = json.dumps(merged)
+        try:
+            seen = set(json.loads(seen_row.value or "[]"))
+        except (ValueError, TypeError):
+            seen = set()
+        mkey = lambda m: f'{m.get("provider")}|{m.get("model")}'
+        have = {mkey(m) for m in current}
+        for d in default_list:
+            dk = mkey(d)
+            if dk not in seen and dk not in have:  # new default the user never removed
+                current.append(d)
+                have.add(dk)
+            seen.add(dk)
+        seen_row.value = json.dumps(sorted(seen))
+        row.value = json.dumps(current)
 
     provider_keys = ["llm_provider", "llm_fallback_provider", "email_llm_provider",
                      "cv_tailor_llm_provider", "cover_letter_llm_provider", "autofill_llm_provider"]

@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const togglePw = (key) => setShowPw(p => ({...p, [key]: !p[key]}))
 
   // Live model catalogs for the "Add Custom Model" typeahead (per provider).
-  const SEARCHABLE_PROVIDERS = ['openrouter', 'openai', 'claude_api']
+  const SEARCHABLE_PROVIDERS = ['openrouter', 'openai', 'claude_api', 'claude_code']
   const [customProvider, setCustomProvider] = useState('claude_api')
   const [customModelName, setCustomModelName] = useState('')
   const [providerModels, setProviderModels] = useState({})   // provider -> [{id,name}]
@@ -241,20 +241,17 @@ export default function SettingsPage() {
       </>)}
 
       {activeTab === 'ai' && (<>
-      {/* AI Scoring Configuration */}
+      {/* AI Models & Providers — global LLM config shared by every AI feature */}
       <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-semibold text-lg dark:text-gray-100">Resume AI Scoring Configuration</h2>
+          <h2 className="font-semibold text-lg dark:text-gray-100">AI Models &amp; Providers</h2>
           <div className="relative group">
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
-              <p className="font-semibold mb-1.5">How scoring works</p>
-              <p className="mb-1.5"><b>Primary LLM</b> — provider + model used for all Resume scoring. Claude API uses the API key from settings (or ANTHROPIC_API_KEY env var as fallback). Claude Code uses your subscription via OAuth. OpenAI/Ollama use their respective keys. <b>OpenRouter</b> reaches every vendor with one key — use vendor-prefixed model slugs (e.g. <code>anthropic/claude-sonnet-5</code>); no prompt-cache discount.</p>
-              <p className="mb-1.5"><b>Fallback LLM</b> — if the primary fails (rate limit, error, timeout), scoring automatically retries with this provider. Each has its own API key. Leave provider as "None" to disable.</p>
-              <p className="mb-1.5"><b>Add Custom Model</b> — models added here appear in both Primary and Fallback dropdowns for the selected provider.</p>
-              <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
-              <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
-              <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
+              <p className="font-semibold mb-1.5">Provider &amp; model config (used by every AI feature)</p>
+              <p className="mb-1.5"><b>Primary LLM</b> — default provider + model. Claude API uses the settings key (or ANTHROPIC_API_KEY). Claude Code uses your subscription via OAuth (same models as Claude API). OpenAI/Ollama use their keys. <b>OpenRouter</b> reaches every vendor with one key — vendor-prefixed slugs (e.g. <code>anthropic/claude-sonnet-5</code>), no prompt-cache discount.</p>
+              <p className="mb-1.5"><b>Secondary (Fallback) LLM</b> — used automatically if the primary fails (rate limit, error, timeout). Its own API key. "None" disables it.</p>
+              <p><b>Add Custom Model</b> — type to search a provider's live catalog (OpenRouter / OpenAI / Claude) or enter any slug, then Add. Models appear in the dropdowns above; the × on a chip deletes it.</p>
             </div>
           </div>
         </div>
@@ -364,7 +361,6 @@ export default function SettingsPage() {
         {/* Custom Models — shared across primary & fallback */}
         {(() => {
           const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
-          const customModels = models.filter(m => m.custom)
           const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama', openrouter: 'OpenRouter' }
           const canSearch = SEARCHABLE_PROVIDERS.includes(customProvider)
           const liveModels = providerModels[customProvider] || []
@@ -419,24 +415,48 @@ export default function SettingsPage() {
                     : 'Type a model name, then Add.'}
                 </p>
               )}
-              {customModels.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {customModels.map(m => (
-                    <span key={m.provider + ':' + m.model} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
-                      <span className="text-gray-400">{providerLabels[m.provider] || m.provider}:</span> {m.model}
-                      <button onClick={() => {
-                        const updated = models.filter(x => !(x.model === m.model && x.provider === m.provider && x.custom))
-                        saveSetting('llm_models_list', updated); setSettings(p => ({...p, llm_models_list: updated}))
-                      }} className="text-red-400 hover:text-red-600">&times;</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const provModels = models.filter(m => m.provider === customProvider)
+                if (!provModels.length) return null
+                return (
+                  <div className="mt-2">
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-1">{providerLabels[customProvider] || customProvider} models — <b>×</b> to delete:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {provModels.map(m => (
+                        <span key={m.provider + ':' + m.model} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
+                          {m.model}{m.custom && <span className="text-blue-400" title="custom">•</span>}
+                          <button title="Delete model" onClick={() => {
+                            if (!window.confirm(`Delete model "${m.model}" from ${providerLabels[m.provider] || m.provider}?`)) return
+                            const updated = models.filter(x => !(x.model === m.model && x.provider === m.provider))
+                            saveSetting('llm_models_list', updated); setSettings(p => ({...p, llm_models_list: updated}))
+                          }} className="text-red-400 hover:text-red-600 leading-none">&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )
         })()}
-        <hr className="border-gray-200 dark:border-gray-700 my-4" />
-        <div className="mt-4">
+      </section>
+
+      {/* Resume AI Scoring Configuration — scoring-specific settings */}
+      <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="font-semibold text-lg dark:text-gray-100">Resume AI Scoring Configuration</h2>
+          <div className="relative group">
+            <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
+            <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
+              <p className="font-semibold mb-1.5">How scoring works</p>
+              <p className="mb-1.5">Uses the Primary/Secondary LLM from <b>AI Models &amp; Providers</b> above.</p>
+              <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
+              <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
+              <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
+            </div>
+          </div>
+        </div>
+        <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Max Parallel Scoring Jobs</label>
           <input type="number" min="1" max="20"
             className="border rounded px-2 py-1.5 text-sm w-20 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"

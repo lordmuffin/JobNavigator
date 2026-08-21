@@ -107,8 +107,11 @@ async def list_models(provider: str = "openrouter"):
     try:
         if provider == "openrouter":
             fetch = _fetch_openrouter()
-        elif provider in ("openai", "claude_api"):
-            key = _resolve_key(db, provider)
+        elif provider in ("openai", "claude_api", "claude_code"):
+            # Claude Code (subscription) serves the same models as Claude API, so it
+            # shares the Anthropic catalog — resolved via any configured Anthropic key.
+            key_provider = "claude_api" if provider == "claude_code" else provider
+            key = _resolve_key(db, key_provider)
             if not key:
                 label = "OpenAI" if provider == "openai" else "Anthropic"
                 raise HTTPException(400, f"No {label} API key configured — set one in Settings first.")
