@@ -249,9 +249,8 @@ export default function SettingsPage() {
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
               <p className="font-semibold mb-1.5">Provider &amp; model config (used by every AI feature)</p>
-              <p className="mb-1.5"><b>Primary LLM</b> — default provider + model. Claude API uses the settings key (or ANTHROPIC_API_KEY). Claude Code uses your subscription via OAuth (same models as Claude API). OpenAI/Ollama use their keys. <b>OpenRouter</b> reaches every vendor with one key — vendor-prefixed slugs (e.g. <code>anthropic/claude-sonnet-5</code>), no prompt-cache discount.</p>
-              <p className="mb-1.5"><b>Secondary (Fallback) LLM</b> — used automatically if the primary fails (rate limit, error, timeout). Its own API key. "None" disables it.</p>
-              <p><b>Add Custom Model</b> — type to search a provider's live catalog (OpenRouter / OpenAI / Claude) or enter any slug, then Add. Models appear in the dropdowns above; the × on a chip deletes it.</p>
+              <p className="mb-1.5"><b>Primary LLM</b> — the default provider + model every AI feature uses. Claude API uses the settings key (or ANTHROPIC_API_KEY). Claude Code uses your subscription via OAuth (same models as Claude API). OpenAI/Ollama use their keys. <b>OpenRouter</b> reaches every vendor with one key — vendor-prefixed slugs (e.g. <code>anthropic/claude-sonnet-5</code>), no prompt-cache discount.</p>
+              <p><b>Add Custom Model</b> — type to search a provider's live catalog (OpenRouter / OpenAI / Claude) or enter any slug, then Add. Models appear in the dropdowns; the × on a chip deletes one (removals persist).</p>
             </div>
           </div>
         </div>
@@ -298,59 +297,6 @@ export default function SettingsPage() {
                       className="border rounded px-2 py-1.5 text-sm w-full pr-8 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
                     <button type="button" onClick={() => togglePw('llm_api_key')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                       {showPw.llm_api_key ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })()}
-        {/* Fallback LLM */}
-        {(() => {
-          const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
-          const provider = settings.llm_fallback_provider || ''
-          const filtered = models.filter(m => m.provider === provider)
-          const currentModel = settings.llm_fallback_model || ''
-          const currentInList = filtered.some(m => m.model === currentModel)
-          return (
-            <div className="mb-4">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Fallback LLM <span className="font-normal text-gray-400">(auto-switch on error/rate limit)</span></label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Provider</label>
-                  <select value={provider}
-                    onChange={e => { setSettings(p => ({...p, llm_fallback_provider: e.target.value})); saveSetting('llm_fallback_provider', e.target.value) }}
-                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
-                    <option value="">None (disabled)</option>
-                    <option value="claude_api">Claude API (Anthropic)</option>
-                    <option value="claude_code">Claude Code (Subscription)</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="ollama">Ollama (Local)</option>
-                    <option value="openrouter">OpenRouter</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Model</label>
-                  <select value={currentModel}
-                    onChange={e => { setSettings(p => ({...p, llm_fallback_model: e.target.value})); saveSetting('llm_fallback_model', e.target.value) }}
-                    disabled={!provider}
-                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 disabled:opacity-50">
-                    <option value="">Select model</option>
-                    {!currentInList && currentModel && <option value={currentModel}>Custom: {currentModel}</option>}
-                    {filtered.map(m => <option key={m.model} value={m.model}>{m.label || m.model}</option>)}
-                  </select>
-                </div>
-              </div>
-              {provider && !['claude_code', 'ollama'].includes(provider) && (
-                <div className="mt-2">
-                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">API Key</label>
-                  <div className="relative">
-                    <input type={showPw.llm_fallback_api_key ? 'text' : 'password'} autoComplete="off" value={settings.llm_fallback_api_key || ''}
-                      onChange={e => setSettings(p => ({...p, llm_fallback_api_key: e.target.value}))}
-                      onBlur={e => saveSetting('llm_fallback_api_key', e.target.value)}
-                      className="border rounded px-2 py-1.5 text-sm w-full pr-8 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-                    <button type="button" onClick={() => togglePw('llm_fallback_api_key')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                      {showPw.llm_fallback_api_key ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
                 </div>
@@ -449,13 +395,103 @@ export default function SettingsPage() {
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
               <p className="font-semibold mb-1.5">How scoring works</p>
-              <p className="mb-1.5">Uses the Primary/Secondary LLM from <b>AI Models &amp; Providers</b> above.</p>
+              <p className="mb-1.5"><b>Primary → Fallback</b> — scores with the Primary model; on error/rate-limit it retries with the Fallback (fallback is scoring-only). Primary is the shared default from <b>AI Models &amp; Providers</b>.</p>
               <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
               <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
               <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
             </div>
           </div>
         </div>
+        {/* Scoring uses the Primary model, and — uniquely — falls back to a Secondary on error. */}
+        {(() => {
+          const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
+          const provider = settings.llm_provider || 'claude_api'
+          const filtered = models.filter(m => m.provider === provider)
+          const currentModel = settings.llm_model || ''
+          const currentInList = filtered.some(m => m.model === currentModel)
+          return (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Primary LLM <span className="font-normal text-gray-400">(shared default — set in AI Models &amp; Providers)</span></label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Provider</label>
+                  <select value={provider}
+                    onChange={e => { setSettings(p => ({...p, llm_provider: e.target.value})); saveSetting('llm_provider', e.target.value) }}
+                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <option value="claude_api">Claude API (Anthropic)</option>
+                    <option value="claude_code">Claude Code (Subscription)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Model</label>
+                  <select value={currentModel}
+                    onChange={e => { setSettings(p => ({...p, llm_model: e.target.value})); saveSetting('llm_model', e.target.value) }}
+                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    {!currentInList && currentModel && <option value={currentModel}>Custom: {currentModel}</option>}
+                    {filtered.map(m => <option key={m.model} value={m.model}>{m.label || m.model}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+        {/* Fallback LLM — scoring-only */}
+        {(() => {
+          const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
+          const provider = settings.llm_fallback_provider || ''
+          const filtered = models.filter(m => m.provider === provider)
+          const currentModel = settings.llm_fallback_model || ''
+          const currentInList = filtered.some(m => m.model === currentModel)
+          return (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Fallback LLM <span className="font-normal text-gray-400">(scoring only — auto-switch on error/rate limit)</span></label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Provider</label>
+                  <select value={provider}
+                    onChange={e => { setSettings(p => ({...p, llm_fallback_provider: e.target.value})); saveSetting('llm_fallback_provider', e.target.value) }}
+                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <option value="">None (disabled)</option>
+                    <option value="claude_api">Claude API (Anthropic)</option>
+                    <option value="claude_code">Claude Code (Subscription)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Model</label>
+                  <select value={currentModel}
+                    onChange={e => { setSettings(p => ({...p, llm_fallback_model: e.target.value})); saveSetting('llm_fallback_model', e.target.value) }}
+                    disabled={!provider}
+                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 disabled:opacity-50">
+                    <option value="">Select model</option>
+                    {!currentInList && currentModel && <option value={currentModel}>Custom: {currentModel}</option>}
+                    {filtered.map(m => <option key={m.model} value={m.model}>{m.label || m.model}</option>)}
+                  </select>
+                </div>
+              </div>
+              {provider && !['claude_code', 'ollama'].includes(provider) && (
+                <div className="mt-2">
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">API Key</label>
+                  <div className="relative">
+                    <input type={showPw.llm_fallback_api_key ? 'text' : 'password'} autoComplete="off" value={settings.llm_fallback_api_key || ''}
+                      onChange={e => setSettings(p => ({...p, llm_fallback_api_key: e.target.value}))}
+                      onBlur={e => saveSetting('llm_fallback_api_key', e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full pr-8 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+                    <button type="button" onClick={() => togglePw('llm_fallback_api_key')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      {showPw.llm_fallback_api_key ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+        <hr className="border-gray-200 dark:border-gray-700 my-4" />
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Max Parallel Scoring Jobs</label>
           <input type="number" min="1" max="20"
