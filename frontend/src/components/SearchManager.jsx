@@ -285,14 +285,16 @@ export default function SearchManager() {
         ) : ed.search_mode === 'freehire' ? (
           <>
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Search Term <span className="text-gray-400">(optional — forwarded as q)</span></label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Search Term <span className="text-gray-400">(optional — ANDed with the URL as q)</span></label>
               <input type="text" value={ed.search_term} onChange={e => setEd({ search_term: e.target.value })}
                 placeholder="e.g. golang backend" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Leave blank if your URL already has your filters. A term narrows further, and must appear in the posting text — e.g. URL role=backend + term <code>kafka</code>.</p>
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">freehire.me URL <span className="text-gray-400">(optional — its filters are forwarded)</span></label>
               <input type="text" value={ed.direct_url} onChange={e => setEd({ direct_url: e.target.value })}
-                placeholder="https://freehire.me/?q=engineer&category=backend&is_tech=tech" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+                placeholder="https://freehire.me/?role=backend&seniority=senior&countries=us" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Paste a search from freehire.me; its filters (role, seniority, countries, collections, posted_within_days…) pass straight through.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Results Wanted</label>
