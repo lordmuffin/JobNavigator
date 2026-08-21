@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api'
+import ModelCombobox from './ModelCombobox'
 import { RefreshCw, Send, Play, Info, Eye, EyeOff } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -17,6 +18,7 @@ export default function SettingsPage() {
   // Live model catalogs for the "Add Custom Model" typeahead (per provider).
   const SEARCHABLE_PROVIDERS = ['openrouter', 'openai', 'claude_api']
   const [customProvider, setCustomProvider] = useState('claude_api')
+  const [customModelName, setCustomModelName] = useState('')
   const [providerModels, setProviderModels] = useState({})   // provider -> [{id,name}]
   const [modelsLoading, setModelsLoading] = useState({})      // provider -> bool
   const [modelsError, setModelsError] = useState({})          // provider -> string
@@ -368,6 +370,15 @@ export default function SettingsPage() {
           const liveModels = providerModels[customProvider] || []
           const loadingModels = modelsLoading[customProvider]
           const modelErr = modelsError[customProvider]
+          const addModel = () => {
+            const name = (customModelName || '').trim(); if (!name) return
+            if (!models.some(m => m.model === name && m.provider === customProvider)) {
+              const updated = [...models, { provider: customProvider, model: name, label: name + ' (custom)', custom: true }]
+              saveSetting('llm_models_list', updated)
+              setSettings(p => ({...p, llm_models_list: updated}))
+            }
+            setCustomModelName('')
+          }
           return (
             <div className="mb-5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Custom Model</label>
@@ -381,25 +392,24 @@ export default function SettingsPage() {
                   <option value="ollama">Ollama</option>
                   <option value="openrouter">OpenRouter</option>
                 </select>
-                <input type="text" id="custom-model-name" placeholder={canSearch ? 'Search live models…' : 'Add custom model...'}
-                  list={canSearch ? 'live-model-list' : undefined}
-                  onFocus={() => fetchProviderModels(customProvider)}
-                  className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-                {canSearch && (
-                  <datalist id="live-model-list">
-                    {liveModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </datalist>
+                {canSearch ? (
+                  <ModelCombobox
+                    models={liveModels}
+                    value={customModelName}
+                    onChange={setCustomModelName}
+                    onFocus={() => fetchProviderModels(customProvider)}
+                    onEnter={addModel}
+                    loading={loadingModels}
+                    placeholder="Search live models…"
+                  />
+                ) : (
+                  <input type="text" value={customModelName}
+                    onChange={e => setCustomModelName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addModel() }}
+                    placeholder="Add custom model..."
+                    className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
                 )}
-                <button onClick={() => {
-                  const prov = customProvider
-                  const input = document.getElementById('custom-model-name')
-                  const name = input.value.trim(); if (!name) return
-                  if (models.some(m => m.model === name && m.provider === prov)) return
-                  const updated = [...models, { provider: prov, model: name, label: name + ' (custom)', custom: true }]
-                  saveSetting('llm_models_list', updated)
-                  setSettings(p => ({...p, llm_models_list: updated}))
-                  input.value = ''
-                }} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
+                <button onClick={addModel} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
               </div>
               {canSearch && (
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
