@@ -74,6 +74,7 @@ def _base_params(search: Search) -> dict:
 
 
 def _parse_job(raw: dict) -> dict:
+    enr = raw.get("enrichment") or {}
     return {
         "title": raw.get("title") or "",
         "company": raw.get("company") or "",
@@ -82,9 +83,27 @@ def _parse_job(raw: dict) -> dict:
         "description": _strip_html(raw.get("description") or ""),
         "posted": raw.get("posted_at"),
         "public_slug": raw.get("public_slug") or "",
-        "seniority": (raw.get("enrichment") or {}).get("seniority"),
-        "employment_type": (raw.get("enrichment") or {}).get("employment_type"),
+        "seniority": enr.get("seniority"),
+        "employment_type": enr.get("employment_type"),
+        # Structured salary (present on ~enriched jobs); period is year/month/hour.
+        "salary_min": enr.get("salary_min"),
+        "salary_max": enr.get("salary_max"),
+        "salary_currency": enr.get("salary_currency"),
+        "salary_period": enr.get("salary_period"),
+        "visa_sponsorship": enr.get("visa_sponsorship"),
     }
+
+
+def _annual_salary(j: dict) -> tuple:
+    """Return (min, max) from freehire enrichment when it's an annual figure.
+
+    Non-annual periods (month/hour) are skipped rather than mis-stored as yearly.
+    """
+    if not j.get("salary_min"):
+        return None, None
+    if j.get("salary_period") not in ("year", None):
+        return None, None
+    return j.get("salary_min"), j.get("salary_max")
 
 
 async def _fetch_all(search: Search) -> list[dict]:
@@ -191,6 +210,15 @@ async def run(search: Search) -> dict:
                     saved=False,
                 )
 
+                # Structured salary from freehire enrichment (annual only) — set
+                # before analyze_inline so the JD extractor doesn't override it.
+                sal_min, sal_max = _annual_salary(j)
+                if sal_min:
+                    job.salary_min = sal_min
+                    if sal_max:
+                        job.salary_max = sal_max
+                    job.salary_source = "posting"
+
                 # Inline body-exclusion (H-1B/language) + salary extraction from JD.
                 try:
                     company_obj = find_company_by_name(db, j["company"])
@@ -271,6 +299,14 @@ async def preview(search: Search, db) -> dict:
                     kept = False
                     reason = f"Body exclusion: {(br['jd_snippet'] or 'matched')[:80]}"
 
+            sal_min, sal_max = _annual_salary(j)
+            salary = None
+            if sal_min:
+                cur = (j.get("salary_currency") or "").upper()
+                salary = f"{cur} {sal_min:,}".strip()
+                if sal_max and sal_max != sal_min:
+                    salary += f" – {sal_max:,}"
+
             desc = j.get("description") or ""
             results.append({
                 "title": j["title"],
@@ -278,7 +314,7 @@ async def preview(search: Search, db) -> dict:
                 "url": j.get("url", ""),
                 "source": "freehire",
                 "location": j.get("location", ""),
-                "salary": None,  # freehire has no structured salary; extractor parses JD at save time
+                "salary": salary,  # structured salary from enrichment (annual); else JD extractor at save
                 "has_description": bool(desc and len(desc) > 50),
                 "desc_length": len(desc),
                 "kept": kept,

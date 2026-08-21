@@ -138,3 +138,35 @@ async def test_run_skips_body_excluded_jobs(monkeypatch, test_db):
     test_db.expire_all()
     titles = [j.title for j in test_db.query(Job).all()]
     assert titles == ["Clean Role"]
+
+
+@pytest.mark.asyncio
+async def test_run_applies_annual_salary_only(monkeypatch, test_db):
+    search = Search(name="t", search_mode="freehire", results_wanted=10,
+                    search_term="e", title_exclude_keywords=[], company_exclude=[])
+    test_db.add(search)
+    test_db.commit()
+
+    import backend.scraper.sources.freehire as fh
+
+    def with_sal(title, url, smin, smax, period):
+        j = _job(title, "Acme", url, slug=url)
+        j.update(salary_min=smin, salary_max=smax, salary_currency="USD", salary_period=period)
+        return j
+
+    async def fake_collect(_search):
+        return [with_sal("Yearly", "https://a/1", 150000, 200000, "year"),
+                with_sal("Monthly", "https://a/2", 9000, 11000, "month")]
+    monkeypatch.setattr(fh, "_collect", fake_collect)
+
+    async def noop(job, db=None, h1b_median=None):
+        pass
+    monkeypatch.setattr(fh, "analyze_inline", noop)
+    monkeypatch.setattr("backend.activity.log_activity", lambda *a, **k: None)
+
+    await fh.run(search)
+    test_db.expire_all()
+    rows = {j.title: j for j in test_db.query(Job).all()}
+    assert rows["Yearly"].salary_min == 150000 and rows["Yearly"].salary_max == 200000
+    assert rows["Yearly"].salary_source == "posting"
+    assert rows["Monthly"].salary_min is None  # month period not stored as annual

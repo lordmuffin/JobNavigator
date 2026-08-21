@@ -33,7 +33,9 @@ def test_parse_job_maps_fields_and_strips_description():
         "title": "Backend Engineer", "company": "Acme", "location": "Remote",
         "url": "https://acme.com/apply/1", "description": "<p>Build <b>things</b></p>",
         "posted_at": "2026-08-21T00:00:00Z", "public_slug": "backend-acme-x",
-        "enrichment": {"seniority": "senior", "employment_type": "full_time"},
+        "enrichment": {"seniority": "senior", "employment_type": "full_time",
+                       "salary_min": 150000, "salary_max": 200000,
+                       "salary_currency": "USD", "salary_period": "year"},
     }
     j = freehire._parse_job(raw)
     assert j["title"] == "Backend Engineer"
@@ -43,9 +45,20 @@ def test_parse_job_maps_fields_and_strips_description():
     assert "<" not in j["description"] and "Build things" in j["description"]
     assert j["seniority"] == "senior"
     assert j["employment_type"] == "full_time"
+    assert j["salary_min"] == 150000 and j["salary_max"] == 200000
+    assert j["salary_currency"] == "USD" and j["salary_period"] == "year"
 
 
 def test_parse_job_tolerates_missing_fields():
     j = freehire._parse_job({})
     assert j["title"] == "" and j["company"] == "" and j["url"] == ""
     assert j["description"] == "" and j["seniority"] is None
+    assert j["salary_min"] is None
+
+
+def test_annual_salary_keeps_yearly_skips_non_annual():
+    assert freehire._annual_salary({"salary_min": 100000, "salary_max": 120000, "salary_period": "year"}) == (100000, 120000)
+    assert freehire._annual_salary({"salary_min": 100000, "salary_period": None}) == (100000, None)
+    assert freehire._annual_salary({"salary_min": 8000, "salary_period": "month"}) == (None, None)
+    assert freehire._annual_salary({"salary_min": 50, "salary_period": "hour"}) == (None, None)
+    assert freehire._annual_salary({"salary_min": None}) == (None, None)
