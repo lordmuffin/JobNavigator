@@ -188,6 +188,11 @@ async def _dispatch(provider: str, model: str, api_key: str,
         return await _call_claude_code(combined, system, model, max_tokens)
     elif provider == "openai":
         return await _call_openai(combined, system, model, api_key, max_tokens)
+    elif provider == "openrouter":
+        # OpenRouter is OpenAI-API-compatible — same client, different base URL.
+        # One key reaches every vendor's models (model slug is vendor-prefixed).
+        return await _call_openai(combined, system, model, api_key, max_tokens,
+                                  base_url="https://openrouter.ai/api/v1")
     elif provider == "ollama":
         return await _call_ollama(combined, system, model, max_tokens)
     else:
@@ -274,10 +279,12 @@ async def _call_claude_code(prompt: str, system: str, model: str, max_tokens: in
     }
 
 
-async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int) -> dict:
-    """Call the OpenAI API. Returns {text, usage}."""
+async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int,
+                       base_url: str | None = None) -> dict:
+    """Call the OpenAI API (or any OpenAI-compatible endpoint via base_url).
+    Returns {text, usage}."""
     from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=api_key)
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)  # base_url=None → OpenAI default
     response = await client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,

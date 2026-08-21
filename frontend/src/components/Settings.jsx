@@ -14,6 +14,20 @@ export default function SettingsPage() {
   const switchTab = (tab) => { setActiveTab(tab); localStorage.setItem('settings_tab', tab) }
   const togglePw = (key) => setShowPw(p => ({...p, [key]: !p[key]}))
 
+  // OpenRouter live model catalog for the "Add Custom Model" typeahead.
+  const [customProvider, setCustomProvider] = useState('claude_api')
+  const [orModels, setOrModels] = useState([])
+  const [orLoading, setOrLoading] = useState(false)
+  const fetchOpenRouterModels = async () => {
+    if (orModels.length || orLoading) return
+    setOrLoading(true)
+    try {
+      const { data } = await api.get('/llm/openrouter-models')
+      setOrModels(data.models || [])
+    } catch (e) { console.error(e) }
+    setOrLoading(false)
+  }
+
   const fetchAll = async () => {
     try {
       const { data: settingsData } = await api.get('/settings')
@@ -227,7 +241,7 @@ export default function SettingsPage() {
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
               <p className="font-semibold mb-1.5">How scoring works</p>
-              <p className="mb-1.5"><b>Primary LLM</b> — provider + model used for all Resume scoring. Claude API uses the API key from settings (or ANTHROPIC_API_KEY env var as fallback). Claude Code uses your subscription via OAuth. OpenAI/Ollama use their respective keys.</p>
+              <p className="mb-1.5"><b>Primary LLM</b> — provider + model used for all Resume scoring. Claude API uses the API key from settings (or ANTHROPIC_API_KEY env var as fallback). Claude Code uses your subscription via OAuth. OpenAI/Ollama use their respective keys. <b>OpenRouter</b> reaches every vendor with one key — use vendor-prefixed model slugs (e.g. <code>anthropic/claude-sonnet-5</code>); no prompt-cache discount.</p>
               <p className="mb-1.5"><b>Fallback LLM</b> — if the primary fails (rate limit, error, timeout), scoring automatically retries with this provider. Each has its own API key. Leave provider as "None" to disable.</p>
               <p className="mb-1.5"><b>Add Custom Model</b> — models added here appear in both Primary and Fallback dropdowns for the selected provider.</p>
               <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
@@ -256,6 +270,7 @@ export default function SettingsPage() {
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
                     <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
                   </select>
                 </div>
                 <div>
@@ -306,6 +321,7 @@ export default function SettingsPage() {
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
                     <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
                   </select>
                 </div>
                 <div>
@@ -341,22 +357,31 @@ export default function SettingsPage() {
         {(() => {
           const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
           const customModels = models.filter(m => m.custom)
-          const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama' }
+          const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama', openrouter: 'OpenRouter' }
+          const isOR = customProvider === 'openrouter'
           return (
             <div className="mb-5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Custom Model</label>
               <div className="flex items-center gap-2">
-                <select id="custom-model-provider" defaultValue={settings.llm_provider || 'claude_api'}
+                <select value={customProvider}
+                  onChange={e => { setCustomProvider(e.target.value); if (e.target.value === 'openrouter') fetchOpenRouterModels() }}
                   className="border rounded px-2 py-1 text-xs dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                   <option value="claude_api">Claude API</option>
                   <option value="claude_code">Claude Code</option>
                   <option value="openai">OpenAI</option>
                   <option value="ollama">Ollama</option>
+                  <option value="openrouter">OpenRouter</option>
                 </select>
-                <input type="text" id="custom-model-name" placeholder="Add custom model..."
+                <input type="text" id="custom-model-name" placeholder={isOR ? 'Search OpenRouter models…' : 'Add custom model...'}
+                  list={isOR ? 'openrouter-model-list' : undefined}
                   className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+                {isOR && (
+                  <datalist id="openrouter-model-list">
+                    {orModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </datalist>
+                )}
                 <button onClick={() => {
-                  const prov = document.getElementById('custom-model-provider').value
+                  const prov = customProvider
                   const input = document.getElementById('custom-model-name')
                   const name = input.value.trim(); if (!name) return
                   if (models.some(m => m.model === name && m.provider === prov)) return
@@ -366,6 +391,13 @@ export default function SettingsPage() {
                   input.value = ''
                 }} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
               </div>
+              {isOR && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                  {orLoading ? 'Loading models from OpenRouter…'
+                    : orModels.length ? `${orModels.length} models available — type to search, then Add. Slugs are vendor-prefixed (e.g. anthropic/claude-sonnet-5).`
+                    : 'One OpenRouter key reaches every vendor. Popular models are prefilled in the dropdowns above.'}
+                </p>
+              )}
               {customModels.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {customModels.map(m => (
@@ -486,6 +518,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -598,6 +631,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -698,6 +732,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -792,6 +827,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
