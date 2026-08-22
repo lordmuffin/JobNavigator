@@ -1177,6 +1177,14 @@ export default function SettingsPage() {
               className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
           </div>
         </div>
+        <div className="mt-3">
+          <button onClick={() => triggerAction('/telegram/test')}
+            disabled={triggerStatus['/telegram/test'] === 'running'}
+            className={`inline-flex items-center gap-2 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200 ${triggerStatus['/telegram/test'] === 'running' ? 'opacity-50' : ''} ${triggerStatus['/telegram/test'] === 'done' ? 'bg-green-50 border-green-300 dark:bg-green-900/30' : ''}`}>
+            <Send size={14} />
+            {triggerStatus['/telegram/test'] === 'running' ? 'Sending…' : triggerStatus['/telegram/test'] === 'done' ? 'Sent!' : 'Send Test Telegram'}
+          </button>
+        </div>
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="mb-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-900 dark:text-blue-200">
             <b>Optional.</b> Outbound alerts and the daily digest work without any webhook configured.
@@ -1385,36 +1393,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Manual Triggers */}
-      <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-semibold text-lg dark:text-gray-100">Manual Triggers</h2>
-          <div className="relative group">
-            <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
-            <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-72 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
-              <p className="font-semibold mb-1.5">Manual Triggers</p>
-              <p>Run scraping, email checks, H-1B refresh, Resume analysis, and database backups on demand. These bypass scheduler intervals and run immediately.</p>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { endpoint: '/scrape/run-all', label: 'Run All Searches', icon: Play },
-            { endpoint: '/email/check-now', label: 'Check Email', icon: RefreshCw },
-            { endpoint: '/h1b/refresh', label: 'Refresh H-1B Data', icon: RefreshCw },
-            { endpoint: '/telegram/test', label: 'Send Test Telegram', icon: Send },
-          ].map(({ endpoint, label, icon: Icon }) => (
-            <button key={endpoint} onClick={() => triggerAction(endpoint)}
-              disabled={triggerStatus[endpoint] === 'running'}
-              className={`flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200 ${
-                triggerStatus[endpoint] === 'running' ? 'opacity-50' : ''
-              } ${triggerStatus[endpoint] === 'done' ? 'bg-green-50 border-green-300' : ''}`}>
-              <Icon size={14} />
-              {triggerStatus[endpoint] === 'running' ? 'Running...' : triggerStatus[endpoint] === 'done' ? 'Done!' : label}
-            </button>
-          ))}
-        </div>
-      </section>
       </>)}
     </div>
   )

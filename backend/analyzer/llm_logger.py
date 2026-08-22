@@ -89,6 +89,13 @@ async def track_llm_call(purpose: str, provider: str, model: str, job_id=None):
         raise
     finally:
         try:
+            # Keep OpenRouter live pricing fresh (TTL-gated) so cost is accurate.
+            if provider == "openrouter":
+                try:
+                    from backend.analyzer.llm_cost import refresh_openrouter_prices
+                    await refresh_openrouter_prices()
+                except Exception:
+                    pass
             log_llm_call(
                 purpose=purpose,
                 provider=provider,

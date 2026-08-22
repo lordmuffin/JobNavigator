@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import api from '../api'
 import InfoTip from './InfoTip'
-import { Plus, Play, Trash2, Edit2, Check, X, FlaskConical, ExternalLink, Loader2 } from 'lucide-react'
+import { Plus, Play, Trash2, Edit2, Check, X, FlaskConical, ExternalLink, Loader2, AlertTriangle } from 'lucide-react'
 
 const SOURCES = [
   { value: 'linkedin', label: 'LinkedIn' },
@@ -41,6 +41,12 @@ const DEFAULT_FORM = {
 
 export default function SearchManager() {
   const [searches, setSearches] = useState([])
+  const [downMap, setDownMap] = useState({})  // search id -> failing-scrape reason
+  useEffect(() => {
+    api.get('/health/entities').then(({ data }) => {
+      const m = {}; (data.searches || []).forEach(s => { m[s.id] = s.reason }); setDownMap(m)
+    }).catch(() => {})
+  }, [])
   const [editing, setEditing] = useState(null) // null | 'new' | search_id
   const [editData, setEditData] = useState({})
   const [running, setRunning] = useState(null)
@@ -690,6 +696,11 @@ export default function SearchManager() {
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
+                  {downMap[s.id] && (
+                    <span title={`Needs attention — ${downMap[s.id]}`} className="text-amber-500 cursor-help">
+                      <AlertTriangle size={14} />
+                    </span>
+                  )}
                   <h3 className="font-medium text-gray-900 dark:text-gray-100">{s.name}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     s.search_mode === 'levels_fyi' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' :

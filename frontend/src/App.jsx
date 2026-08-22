@@ -13,6 +13,7 @@ import Persona from './components/Persona'
 import LoginModal from './components/LoginModal'
 import WelcomeModal from './components/WelcomeModal'
 import WhatsNewBanner from './components/WhatsNewBanner'
+import HealthBanner from './components/HealthBanner'
 import axios from 'axios'
 
 const NAV_ITEMS = [
@@ -144,6 +145,7 @@ function App() {
 
         {/* Main content */}
         <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+          <HealthBanner />
           <WhatsNewBanner />
           <Routes>
             <Route path="/" element={<JobFeed />} />
