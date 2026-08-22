@@ -767,6 +767,62 @@ def seed_persona(db):
     logger.info("Persona singleton (id=1) seeded with empty nodes")
 
 
+def migrate_h1b_to_visa_cache(db):
+    """One-time: copy legacy companies.h1b_* into the visa_cache table, then drop
+    those columns. Idempotent — no-op once the columns are gone (fresh installs
+    never have them). Postgres only for the DROP; SQLite/tests skip via detection."""
+    from backend.models.db import VisaCache
+    from sqlalchemy import text
+
+    bind = db.get_bind()
+    dialect = bind.dialect.name
+    try:
+        if dialect == "postgresql":
+            cols = {r[0] for r in db.execute(text(
+                "select column_name from information_schema.columns where table_name='companies'"))}
+        elif dialect == "sqlite":
+            cols = {r[1] for r in db.execute(text("PRAGMA table_info(companies)"))}
+        else:
+            return
+    except Exception:
+        return
+    if "h1b_lca_count" not in cols:
+        return  # already migrated, or fresh install
+
+    # 1) Seed visa_cache from the legacy columns (rows with data or a slug).
+    try:
+        rows = db.execute(text(
+            "select name, h1b_slug, h1b_lca_count, h1b_approval_rate, h1b_median_salary, "
+            "h1b_last_checked from companies")).fetchall()
+    except Exception:
+        rows = []
+    existing = {r.name_key for r in db.query(VisaCache).all()}
+    seeded = 0
+    for name, slug, lca, appr, med, checked in rows:
+        key = (name or "").strip().lower()
+        if not key or key in existing:
+            continue
+        has = bool((lca or 0) > 0 or (med or 0) > 0)
+        if not (has or slug):
+            continue
+        db.add(VisaCache(name_key=key, country="US", display_name=name, slug=slug,
+                         lca_count=lca, approval_rate=appr, median_salary=med,
+                         has_data=has, fetched_at=checked))
+        existing.add(key)
+        seeded += 1
+    db.commit()
+    logger.info("migrate_h1b_to_visa_cache: seeded %d companies into visa_cache", seeded)
+
+    # 2) Drop the legacy columns (Postgres supports IF EXISTS; SQLite skipped).
+    if dialect == "postgresql":
+        for col in ("h1b_lca_count", "h1b_approval_rate", "h1b_median_salary", "h1b_last_checked"):
+            try:
+                db.execute(text(f"ALTER TABLE companies DROP COLUMN IF EXISTS {col}"))
+            except Exception as e:
+                logger.warning("drop legacy column %s failed: %s", col, e)
+        db.commit()
+
+
 def run_seeds():
     db = SessionLocal()
     try:
@@ -780,5 +836,6 @@ def run_seeds():
         cleanup_removed_settings(db)
         migrate_llm_settings(db)
         migrate_cv_terminology(db)
+        migrate_h1b_to_visa_cache(db)
     finally:
         db.close()

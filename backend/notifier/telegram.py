@@ -255,8 +255,12 @@ async def send_digest():
         yesterday = today - timedelta(days=1)
         yesterday_start = datetime.combine(yesterday, datetime.min.time()).replace(tzinfo=timezone.utc)
 
-        # Count new jobs since yesterday
-        new_jobs = db.query(Job).filter(Job.discovered_at >= yesterday_start).count()
+        # Count genuinely-new jobs: discovered in the window AND still untriaged
+        # (status='new') — excludes ones already saved/skipped/applied.
+        new_jobs = db.query(Job).filter(
+            Job.discovered_at >= yesterday_start,
+            Job.status == "new",
+        ).count()
 
         # Strong matches (score >= threshold)
         threshold_row = db.query(Setting).filter(Setting.key == "fit_score_threshold").first()

@@ -221,9 +221,7 @@ async def run(search: Search) -> dict:
 
                 # Inline body-exclusion (H-1B/language) + salary extraction from JD.
                 try:
-                    company_obj = find_company_by_name(db, j["company"])
-                    h1b_median = company_obj.h1b_median_salary if company_obj else None
-                    await analyze_inline(job, db=db, h1b_median=h1b_median)
+                    await analyze_inline(job, db=db)
                 except Exception as e:
                     logger.warning(f"freehire inline analysis failed for {j['title']}: {e}")
 

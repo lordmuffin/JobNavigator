@@ -109,8 +109,15 @@ def list_companies(
         key = (name or "").lower().replace(" ", "")
         app_counts[key] = app_counts.get(key, 0) + count
 
+    # H-1B metrics come from VisaCache (one query, mapped by normalized name).
+    from backend.models.db import VisaCache
+    h1b_map = {r.name_key: r for r in db.query(VisaCache).filter(VisaCache.country == "US").all()}
     return [
-        _company_to_dict(c, application_count=app_counts.get(c.name.lower().replace(" ", ""), 0))
+        _company_to_dict(
+            c,
+            application_count=app_counts.get(c.name.lower().replace(" ", ""), 0),
+            h1b=h1b_map.get((c.name or "").strip().lower()),
+        )
         for c in companies
     ]
 
@@ -169,7 +176,11 @@ def update_company(company_id: str, updates: dict, background_tasks: BackgroundT
         if "h1b_slug" in updates or "name" in updates:
             background_tasks.add_task(_fire_h1b_async, company_id)
 
-    return _company_to_dict(company)
+    from backend.models.db import VisaCache
+    h1b = db.query(VisaCache).filter(
+        VisaCache.name_key == (company.name or "").strip().lower(), VisaCache.country == "US"
+    ).first()
+    return _company_to_dict(company, h1b=h1b)
 
 
 @router.post("/auto-create-from-jobs")
@@ -226,18 +237,14 @@ def bulk_activate(data: BulkActivate, db: Session = Depends(get_db)):
 @router.post("/refresh-h1b")
 async def refresh_h1b_all(db: Session = Depends(get_db)):
     """Fetch H-1B data for all companies that haven't been checked yet, or re-check all."""
-    from backend.analyzer.h1b_checker import fetch_company_h1b_data
+    from backend.analyzer.h1b_checker import resolve_company_h1b
     companies = db.query(Company).all()
     updated = 0
     for company in companies:
         try:
-            data = await fetch_company_h1b_data(company.name, h1b_slug=company.h1b_slug)
-            # Only update if new data has LCAs or existing data is already zero
-            if data["lca_count"] > 0 or (company.h1b_lca_count or 0) == 0:
-                company.h1b_lca_count = data["lca_count"]
-                company.h1b_approval_rate = data["approval_rate"]
-                company.h1b_median_salary = data["median_salary"]
-                company.h1b_last_checked = datetime.now(timezone.utc)
+            data = await resolve_company_h1b(db, company.name, slug=company.h1b_slug,
+                                             allow_live=True, respect_budget=False, force=True)
+            if data:
                 updated += 1
         except Exception as e:
             logger.error(f"H-1B refresh failed for {company.name}: {e}")
@@ -513,9 +520,10 @@ async def test_scrape_company(company_id: str, db: Session = Depends(get_db)):
             await pw.stop()
 
 
-def _company_to_dict(c: Company, application_count: int = 0) -> dict:
+def _company_to_dict(c: Company, application_count: int = 0, h1b=None) -> dict:
     urls = c.scrape_urls or []
     detected_types = {url: detect_scrape_type(url) for url in urls if url.strip()}
+    # h1b is a VisaCache row (or None) for this company — H-1B metrics live there now.
     return {
         "id": str(c.id),
         "name": c.name,
@@ -535,10 +543,10 @@ def _company_to_dict(c: Company, application_count: int = 0) -> dict:
         "h1b_slug": c.h1b_slug,
         "detected_scrape_types": detected_types,
         "application_count": application_count,
-        "h1b_lca_count": c.h1b_lca_count,
-        "h1b_approval_rate": c.h1b_approval_rate,
-        "h1b_median_salary": c.h1b_median_salary,
-        "h1b_last_checked": c.h1b_last_checked.isoformat() if c.h1b_last_checked else None,
+        "h1b_lca_count": h1b.lca_count if h1b else None,
+        "h1b_approval_rate": h1b.approval_rate if h1b else None,
+        "h1b_median_salary": h1b.median_salary if h1b else None,
+        "h1b_last_checked": h1b.fetched_at.isoformat() if (h1b and h1b.fetched_at) else None,
         "last_scraped_at": c.last_scraped_at.isoformat() if c.last_scraped_at else None,
         "notes": c.notes,
     }

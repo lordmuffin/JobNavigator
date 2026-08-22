@@ -265,8 +265,7 @@ async def scrape_single_career_page(company: Company, shared_browser=None,
                     from backend.analyzer.h1b_checker import check_job_h1b
                     from backend.analyzer.salary_extractor import apply_salary_to_job
                     await check_job_h1b(job, db, company_lookup=_company_lookup, phrases=_phrases)
-                    h1b_median = company.h1b_median_salary if hasattr(company, 'h1b_median_salary') else None
-                    apply_salary_to_job(job, h1b_median)
+                    apply_salary_to_job(job, getattr(job, "_h1b_median", None))
                 except Exception as analysis_err:
                     logger.warning(f"Inline analysis failed for {j['title']}: {analysis_err}")
 

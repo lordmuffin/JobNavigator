@@ -248,8 +248,7 @@ def _run_sync(search, proxy_url: str = None) -> dict:
                 try:
                     from backend.analyzer.salary_extractor import apply_salary_to_job
                     company_obj = company_lookup.get(company.strip().lower())
-                    h1b_median = company_obj.h1b_median_salary if company_obj else None
-                    apply_salary_to_job(job, h1b_median)
+                    apply_salary_to_job(job, getattr(job, "_h1b_median", None))
                 except Exception as analysis_err:
                     logger.warning(f"Inline salary analysis failed for {title}: {analysis_err}")
 

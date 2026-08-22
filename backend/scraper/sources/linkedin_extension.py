@@ -263,17 +263,14 @@ async def enrich(linkedin_ids: list[str], db=None):
                         status="new",
                     )
 
-                    # Salary extraction from description
-                    comp_obj = company_lookup.get(company.lower().strip())
-                    h1b_median = comp_obj.h1b_median_salary if comp_obj else None
-                    apply_salary_to_job(job, h1b_median)
-
-                    # H-1B + language check
+                    # H-1B + language check first, then salary (reuses the cache
+                    # median that check_job_h1b stashes on the job).
                     try:
                         await check_job_h1b(job, db, company_lookup=company_lookup, phrases=_phrases)
                         job.h1b_verdict = determine_h1b_verdict(
                             job.h1b_company_lca_count, job.h1b_jd_flag
                         )
+                        apply_salary_to_job(job, getattr(job, "_h1b_median", None))
                     except Exception as e:
                         logger.warning(f"LinkedIn {lid}: analysis error: {e}")
                         _linkedin_import_progress["errors"] = (

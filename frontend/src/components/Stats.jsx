@@ -480,7 +480,7 @@ export default function Stats() {
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Job ID</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Schedule</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Next Run (CET)</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 w-32">Status</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 w-40">Status</th>
                 <th className="text-right px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 w-32">Actions</th>
               </tr>
             </thead>
@@ -495,9 +495,9 @@ export default function Stats() {
                     <td className="px-4 py-2 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">{job.id}</td>
                     <td className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap" title={job.schedule}>{decodeCron(job.schedule)}</td>
                     <td className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatCET(job.next_run)}</td>
-                    <td className="px-4 py-2 text-xs">
+                    <td className="px-4 py-2 text-xs whitespace-nowrap">
                       {isRunning ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 animate-pulse">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 animate-pulse whitespace-nowrap">
                           <Loader2 size={10} className="animate-spin" />
                           Running ({Math.round(job.running?.elapsed_seconds || 0)}s)
                         </span>
