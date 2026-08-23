@@ -146,6 +146,104 @@ DEFAULT_SETTINGS = {
         {"id": "storytelling", "label": "Storytelling", "instruction": "Open with a brief hook or narrative, then connect it to the role."},
     ]), "Editable cover-letter voice presets: list of {id, label, instruction}. The selected preset's instruction is injected into the generation prompt."),
     "cover_letter_default_voice": ("professional", "Default voice preset id for new cover letters (must match an id in cover_letter_voice_presets)"),
+    "autofill_field_patterns": (json.dumps({
+        "gender": ["gender", "what is your gender", "gender identity"],
+        "race_ethnicity": ["race", "ethnicity", "race/ethnicity", "racial background", "ethnicities"],
+        "veteran_status": ["veteran", "protected veteran", "vevraa"],
+        "hispanic_latino": ["hispanic or latino", "hispanic/latino", "are you hispanic", "hispanic latino"],
+        "disability_status": ["disability", "disabled", "section 503"],
+        "age_range": ["current age", "your age", "age range", "how old", "what is your age"],
+        "transgender": ["transgender", "identify as transgender", "trans"],
+        "sexual_orientation": ["sexual orientation", "your sexual orientation", "how do you identify your sexual"],
+        "authorized_us": ["authorized to work", "legally authorized", "work authorization"],
+        "requires_sponsorship_now": ["require sponsorship", "need sponsorship", "visa sponsorship", "require immigration", "immigration sponsorship"],
+        "requires_sponsorship_future": ["future sponsorship", "sponsorship in the future"],
+        "over_18": ["over 18", "at least 18", "18 years of age"],
+        "first_name": ["first name", "given name"],
+        "last_name": ["last name", "surname", "family name"],
+        "full_name": ["full name", "your name", "legal name"],
+        "email": ["email"],
+        "phone": ["phone", "mobile", "telephone"],
+        "city": ["city", "current location", "location"],
+        "state": ["state", "province"],
+        "country": ["country"],
+        "linkedin": ["linkedin"],
+        "github": ["github"],
+        "portfolio": ["portfolio", "personal website", "website"],
+        "current_company": ["current company", "current employer"],
+        "willing_to_relocate": ["relocate", "willing to relocate"],
+        "willing_remote": ["work remotely", "remote work"],
+        "desired_salary": ["desired salary", "salary expectation", "expected salary", "compensation expectation"],
+        "notice_period": ["notice period"],
+        "earliest_start": ["start date", "available to start", "earliest start"],
+        "referral_source": ["referral source", "referred by"],
+        "how_did_you_hear": ["how did you hear"],
+    }), "Editable dictionary: canonical autofill key -> list of label synonyms used to match a form field to an answer"),
+    "autofill_option_synonyms": (json.dumps({
+        "veteran_status": {
+            "protected_veteran": ["i am a protected veteran", "identify as one or more", "yes"],
+            "not_protected_veteran": ["not a protected veteran", "not a veteran", "no"],
+            "decline": ["decline", "don't wish to answer", "do not wish to answer", "prefer not"],
+        },
+        "hispanic_latino": {
+            "yes": ["hispanic or latino", "yes, i am", "yes"],
+            "no": ["not hispanic or latino", "no, i am not", "no"],
+            "decline": ["decline", "don't wish to answer", "prefer not"],
+        },
+        "disability_status": {
+            "yes": ["yes, i have a disability", "yes", "i have a disability"],
+            "no": ["no, i don't have a disability", "no", "do not have a disability"],
+            "decline": ["decline", "do not want to answer", "prefer not"],
+        },
+        "gender": {
+            "male": ["male", "man"],
+            "female": ["female", "woman"],
+            "nonbinary": ["non-binary", "nonbinary", "other"],
+            "decline": ["decline", "prefer not", "don't wish"],
+        },
+        "race_ethnicity": {
+            "hispanic_latino": ["hispanic", "latino", "latinx"],
+            "white": ["white"],
+            "black": ["black", "african american"],
+            "asian": ["asian"],
+            "native_american": ["native american", "alaska native", "american indian"],
+            "pacific_islander": ["pacific islander", "native hawaiian"],
+            "two_or_more": ["two or more"],
+            "decline": ["decline", "prefer not", "don't wish"],
+        },
+        "work_auth_type": {
+            "citizen": ["u.s. citizen", "us citizen", "citizen"],
+            "permanent_resident": ["permanent resident", "green card"],
+            "visa": ["visa", "work visa"],
+            "other": ["other"],
+        },
+        "age_range": {
+            "under_30": ["under 30", "under 30 years", "less than 30"],
+            "30_39": ["30-39", "30 - 39", "30 to 39"],
+            "40_49": ["40-49", "40 - 49", "40 to 49"],
+            "50_59": ["50-59", "50 - 59", "50 to 59"],
+            "60_plus": ["60 or older", "60+", "60 and over", "over 60"],
+            "decline": ["prefer not to answer", "decline", "don't wish", "do not wish"],
+        },
+        "transgender": {
+            "yes": ["yes"],
+            "no": ["no"],
+            "decline": ["prefer not to answer", "decline", "don't wish", "do not wish"],
+        },
+        "sexual_orientation": {
+            "heterosexual": ["heterosexual", "straight"],
+            "gay": ["gay"],
+            "lesbian": ["lesbian"],
+            "bisexual": ["bisexual"],
+            "queer": ["queer"],
+            "other": ["other"],
+            "decline": ["prefer not to answer", "decline", "don't wish", "do not wish"],
+        },
+        "_bool": {
+            "true": ["yes", "true"],
+            "false": ["no", "false"],
+        },
+    }), "Editable dictionary: enum key -> {enum value -> list of option-text synonyms}; '_bool' maps yes/no. Used to pick the right option on a form."),
     "tracer_links_enabled": ("false", "Enable URL rewriting in PDF generation with tracking links"),
     "tracer_links_base_url": ("", "Public base URL for tracer links (e.g., https://yourdomain.com)"),
     "tracer_links_url_style": ("path", "URL format: path or param. Token: random or job_id. Combinations: path, param, path_jobid, param_jobid"),
@@ -177,6 +275,7 @@ DEFAULT_SETTINGS = {
     "autofill_llm_provider": ("", "LLM provider for application autofill (empty = use primary llm_provider)"),
     "autofill_llm_model": ("", "LLM model for application autofill (empty = use primary llm_model)"),
     "autofill_default_length": ("250", "Default target character length for autofill answers when a field has no maxlength"),
+    "autofill_decline_self_id": ("true", "When on, diversity self-ID questions not covered by the persona (pronouns, marital status, etc.) auto-select 'I prefer not to answer' instead of being left blank"),
     "autofill_prompt": (
         "You are the candidate, writing a short first-person answer to a job-application question.\n\n"
         "Use ONLY facts from the candidate profile and the reusable Q&A bank below. Never invent employers, "
@@ -480,6 +579,10 @@ def cleanup_removed_settings(db):
         # 2026-07: openai_compat provider removed — these endpoints were only for it
         "llm_base_url",
         "llm_fallback_base_url",
+        # 2026-08: structured-autofill on/off + trigger live in the extension popup,
+        # not server settings — they're per-browser preferences.
+        "autofill_structured_enabled",
+        "autofill_structured_trigger",
     ]
     for key in removed_keys:
         row = db.query(Setting).filter(Setting.key == key).first()
@@ -823,11 +926,41 @@ def migrate_h1b_to_visa_cache(db):
         db.commit()
 
 
+def migrate_autofill_dicts(db):
+    """Merge newly-added canonical keys into the editable autofill dictionaries.
+
+    autofill_field_patterns / autofill_option_synonyms are add-only user-editable
+    settings, so seed_settings never touches them once they exist. When new answer
+    keys ship (age_range, transgender, sexual_orientation, …) their default label
+    synonyms and option synonyms must be merged in without clobbering the user's
+    edits: only top-level keys the stored dict is missing are added.
+    """
+    for setting_key in ("autofill_field_patterns", "autofill_option_synonyms"):
+        row = db.query(Setting).filter(Setting.key == setting_key).first()
+        if not row:
+            continue
+        default_json = DEFAULT_SETTINGS.get(setting_key, ("{}", ""))[0]
+        try:
+            defaults = json.loads(default_json)
+            stored = json.loads(row.value or "{}")
+        except (ValueError, TypeError):
+            continue
+        changed = False
+        for k, v in defaults.items():
+            if k not in stored:
+                stored[k] = v
+                changed = True
+        if changed:
+            row.value = json.dumps(stored)
+    db.commit()
+
+
 def run_seeds():
     db = SessionLocal()
     try:
         run_migrations(db)
         seed_settings(db)
+        migrate_autofill_dicts(db)
         seed_companies(db)
         seed_h1b_slugs(db)
         seed_searches(db)

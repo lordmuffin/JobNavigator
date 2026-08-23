@@ -181,6 +181,70 @@ async def call_autofill_llm(prompt: str, system: str, max_tokens: int = 400,
                            cached_prefix=cached_prefix)
 
 
+async def call_autofill_llm_stream(prompt: str, system: str, max_tokens: int = 400,
+                                   cached_prefix: str | None = None):
+    """Streaming version of call_autofill_llm — async-yields text chunks as the
+    model generates them. claude_api + openai/openrouter stream natively; other
+    providers fall back to a single chunk with the full answer."""
+    db = SessionLocal()
+    try:
+        provider = _get_setting(db, "autofill_llm_provider", "") or _get_setting(db, "llm_provider", "claude_api")
+        model = _get_setting(db, "autofill_llm_model", "") or _get_setting(db, "llm_model", "claude-sonnet-5")
+        api_key = _get_setting(db, "autofill_llm_api_key", "") or _get_setting(db, "llm_api_key", "")
+    finally:
+        db.close()
+
+    if provider == "claude_api":
+        async for c in _stream_claude(prompt, system, model, api_key, max_tokens, cached_prefix):
+            yield c
+        return
+    combined = f"{cached_prefix}\n\n{prompt}" if cached_prefix else prompt
+    if provider in ("openai", "openrouter"):
+        base = "https://openrouter.ai/api/v1" if provider == "openrouter" else None
+        async for c in _stream_openai(combined, system, model, api_key, max_tokens, base):
+            yield c
+        return
+    # non-streaming providers (claude_code, ollama, …) can't emit tokens as they
+    # generate, so simulate streaming: fetch the full answer, then yield it in
+    # word-sized chunks so the in-field draft still animates instead of popping.
+    import asyncio, re
+    res = await _dispatch(provider, model, api_key, prompt, system, max_tokens, cached_prefix=cached_prefix)
+    text = res.get("text", "") or ""
+    for tok in re.findall(r"\S+\s*", text):
+        yield tok
+        await asyncio.sleep(0.012)
+
+
+async def _stream_claude(prompt, system, model, api_key, max_tokens, cached_prefix):
+    import anthropic, os
+    key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+    client = anthropic.AsyncAnthropic(api_key=key)
+    if cached_prefix:
+        content = [
+            {"type": "text", "text": cached_prefix, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": prompt},
+        ]
+    else:
+        content = prompt
+    async with client.messages.stream(model=model, max_tokens=max_tokens, system=system,
+                                      messages=[{"role": "user", "content": content}]) as stream:
+        async for text in stream.text_stream:
+            yield text
+
+
+async def _stream_openai(prompt, system, model, api_key, max_tokens, base_url=None):
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+    stream = await client.chat.completions.create(
+        model=model, max_tokens=max_tokens, stream=True,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+    )
+    async for chunk in stream:
+        delta = chunk.choices[0].delta.content if chunk.choices else None
+        if delta:
+            yield delta
+
+
 async def _dispatch(provider: str, model: str, api_key: str,
                     prompt: str, system: str, max_tokens: int,
                     cached_prefix: str | None = None) -> dict:

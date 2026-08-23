@@ -7,25 +7,75 @@ import ResumeContentEditor, { EMPTY_RESUME_DATA } from './ResumeContentEditor'
 // dedicated structured editor in the left column). Per-section info is rolled
 // up into the column-level header tooltip.
 const RIGHT_SECTIONS = [
-  { key: 'contact', label: 'Contact', kind: 'object',
-    fields: ['name', 'email', 'phone', 'address', 'linkedin', 'github', 'website'],
-    usedBy: ['Tailoring (header)', 'Cover letter (header)', 'Autofill (form fields)', 'Outreach'] },
-  { key: 'work_auth', label: 'Work Authorization', kind: 'object',
-    fields: ['citizenship', 'sponsorship_needed', 'visa_status', 'earliest_start_date'],
-    usedBy: ['Autofill (visa / sponsorship questions)'] },
-  { key: 'demographics', label: 'Demographics (EEO)', kind: 'object',
-    fields: ['gender', 'race', 'veteran_status', 'disability_status'],
-    hint: 'All fields default to "decline to answer". Most postings make these optional.',
-    usedBy: ['Autofill (EEO sections)'] },
-  { key: 'compensation', label: 'Compensation', kind: 'object',
-    fields: ['target_min', 'target_max', 'currency', 'notes'],
-    usedBy: ['Autofill (salary expectation fields)', 'Cover letter (when "expected comp" asked)'] },
-  { key: 'preferences', label: 'Preferences', kind: 'object',
-    fields: ['remote', 'hybrid_ok', 'onsite_ok', 'willing_to_relocate', 'preferred_locations', 'availability_notes'],
-    usedBy: ['Autofill (work model / relocation fields)', 'Future: filter scraped jobs'] },
+  // Contact section merged into the Application Answers "Contact / Basics" group
+  // below (email/phone/linkedin/github now live there alongside first_name/etc).
+  // Work Authorization section removed: citizenship/sponsorship_needed/visa_status/
+  // earliest_start_date were legacy free-text, superseded by the canonical
+  // authorized_us / work_auth_type / requires_sponsorship_now|future / over_18
+  // controls in "Application Answers" below (+ preferences.earliest_start).
+  // Demographics (EEO) section removed: every one of its legacy free-text fields
+  // (gender, race, veteran_status, disability_status) has been superseded by the
+  // canonical enum selects in the "Application Answers" card below, which write
+  // the same `demographics` node keys (gender, race_ethnicity, veteran_status,
+  // disability_status) in a structured, autofill-consumable format. Keeping
+  // both would let two controls clobber the same JSON keys with conflicting
+  // representations (free text vs. enum value / boolean).
+  // Compensation section removed: its legacy fields (target_min/max/currency/notes)
+  // were unused by any backend consumer; the only comp value autofill needs is
+  // `desired_salary`, edited in "Application Answers" below.
+  // Preferences section removed: its autofill-relevant fields (willing_remote,
+  // willing_to_relocate, notice_period, earliest_start, referral_source,
+  // how_did_you_hear) are in "Application Answers" below, which writes the
+  // `preferences`/`compensation` nodes directly. Existing preferences values are
+  // preserved and still flow into cover-letter generation.
   { key: 'qa_bank', label: 'Q&A Bank', kind: 'array',
     hint: 'Reusable answers to free-text application questions ("Why this company?", "Comp expectations")',
     usedBy: ['Autofill (free-text screener questions)'] },
+]
+
+// All contact keys, edited inside the Application Answers "Contact / Basics"
+// group (the standalone Contact card was merged in here). Each writes the
+// `contact` node.
+const APPLICATION_ANSWERS_CONTACT_FIELDS = [
+  { key: 'first_name', label: 'First name' },
+  { key: 'last_name', label: 'Last name' },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'country', label: 'Country' },
+  { key: 'linkedin', label: 'LinkedIn' },
+  { key: 'github', label: 'GitHub' },
+  { key: 'portfolio', label: 'Portfolio URL' },
+  { key: 'current_company', label: 'Current company' },
+]
+
+// Demographic dropdowns are unset ("—") by default; the "prefer not to answer"
+// checkbox is the single decline control (no per-field "Decline" option).
+const GENDER_OPTIONS = [
+  ['male', 'Male'], ['female', 'Female'], ['nonbinary', 'Non-binary'],
+]
+const RACE_ETHNICITY_OPTIONS = [
+  ['hispanic_latino', 'Hispanic/Latino'], ['white', 'White'], ['black', 'Black/African American'],
+  ['asian', 'Asian'], ['native_american', 'Native American'], ['pacific_islander', 'Pacific Islander'],
+  ['two_or_more', 'Two or more'],
+]
+const VETERAN_STATUS_OPTIONS = [
+  ['protected_veteran', 'I am a protected veteran'], ['not_protected_veteran', 'Not a protected veteran'],
+]
+const DISABILITY_STATUS_OPTIONS = [['yes', 'Yes'], ['no', 'No']]
+const HISPANIC_LATINO_OPTIONS = [['yes', 'Yes'], ['no', 'No']]
+const AGE_RANGE_OPTIONS = [
+  ['under_30', 'Under 30'], ['30_39', '30–39'], ['40_49', '40–49'],
+  ['50_59', '50–59'], ['60_plus', '60 or older'],
+]
+const TRANSGENDER_OPTIONS = [['no', 'No'], ['yes', 'Yes']]
+const SEXUAL_ORIENTATION_OPTIONS = [
+  ['heterosexual', 'Heterosexual / straight'], ['gay', 'Gay'], ['lesbian', 'Lesbian'],
+  ['bisexual', 'Bisexual'], ['queer', 'Queer'], ['other', 'Other'],
+]
+const WORK_AUTH_TYPE_OPTIONS = [
+  ['citizen', 'U.S. citizen'], ['permanent_resident', 'Permanent resident'], ['visa', 'Visa holder'], ['other', 'Other'],
 ]
 
 export default function Persona() {
@@ -137,6 +187,33 @@ export default function Persona() {
             </span>
             <span className="text-[11px] text-gray-400 dark:text-gray-500 ml-auto">Saves automatically</span>
           </div>
+          {/* Application Answers — structured contact + yes/no + enum fields the
+              Autofill feature reads directly. Spans several persona nodes
+              (demographics, work_auth, contact, preferences, compensation), so
+              it's rendered as its own card rather than the single-node NodeEditor.
+              Rendered first; the Q&A Bank (free-text pairs) sits at the bottom. */}
+          <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg mb-4">
+            <button
+              onClick={() => toggle('application_answers')}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg"
+            >
+              <span className="flex items-center gap-2">
+                {open.includes('application_answers') ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                Application Answers
+              </span>
+            </button>
+            {open.includes('application_answers') && (
+              <div className="px-4 pb-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 mb-3">
+                  Contact details plus fixed yes/no and multiple-choice answers the Autofill feature
+                  uses to fill screener questions (work authorization, EEO, relocation) consistently
+                  across applications.
+                </p>
+                <ApplicationAnswersEditor persona={persona} saveNodeDebounced={saveNodeDebounced} />
+              </div>
+            )}
+          </div>
+
           {RIGHT_SECTIONS.map(s => {
             const isOpen = open.includes(s.key)
             return (
@@ -202,5 +279,179 @@ function NodeEditor({ section, value, onSave, onSaveDebounced }) {
       rows={12}
       className="w-full border rounded px-2 py-2 text-xs font-mono mt-3 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-600"
     />
+  )
+}
+
+// -- Application Answers field primitives -----------------------------------
+// Mirror the input styling from NodeEditor's object-kind fields (same border/
+// dark classes) so the new section looks identical to the rest of the column.
+
+function TextField({ label, value, onChange }) {
+  return (
+    <label className="text-xs text-gray-600 dark:text-gray-400">
+      {label}
+      <input
+        type="text"
+        defaultValue={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full border rounded px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+      />
+    </label>
+  )
+}
+
+// Enum select. Empty string ("—") means unset and is treated the same as
+// yes/no's unset state: the key is cleared from the node rather than storing "".
+function SelectField({ label, value, options, onChange, placeholder }) {
+  return (
+    <label className="text-xs text-gray-600 dark:text-gray-400">
+      {label}
+      <select
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
+        className="mt-1 w-full border rounded px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+      >
+        <option value="">{placeholder || '—'}</option>
+        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+    </label>
+  )
+}
+
+// 3-state yes/no select. Stores real booleans; "—" clears the key.
+function YesNoField({ label, value, onChange }) {
+  const selectValue = value === true ? 'true' : value === false ? 'false' : ''
+  return (
+    <label className="text-xs text-gray-600 dark:text-gray-400">
+      {label}
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          const v = e.target.value
+          onChange(v === '' ? undefined : v === 'true')
+        }}
+        className="mt-1 w-full border rounded px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+      >
+        <option value="">—</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </select>
+    </label>
+  )
+}
+
+function CheckboxField({ label, checked, onChange }) {
+  return (
+    <label className="col-span-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+      <input
+        type="checkbox"
+        checked={!!checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="rounded border-gray-300 dark:border-gray-600"
+      />
+      {label}
+    </label>
+  )
+}
+
+// Groups A-D from the Application Answers spec. Each group edits a different
+// persona node; saveNodeDebounced(nodeKey, mergedNode) PATCHes the whole node
+// (the persona PATCH contract replaces a node atomically), matching the merge
+// pattern used by NodeEditor's object-kind fields above.
+function ApplicationAnswersEditor({ persona, saveNodeDebounced }) {
+  const demographics = persona.demographics || {}
+  const workAuth = persona.work_auth || {}
+  const contact = persona.contact || {}
+  const preferences = persona.preferences || {}
+  const compensation = persona.compensation || {}
+
+  const setField = (nodeKey, node, field, value) => {
+    const next = { ...node }
+    if (value === undefined) delete next[field]
+    else next[field] = value
+    saveNodeDebounced(nodeKey, next)
+  }
+
+  return (
+    <div className="mt-1 space-y-5">
+      <div>
+        <h3 className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          Contact / Basics
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          {APPLICATION_ANSWERS_CONTACT_FIELDS.map(f => (
+            <TextField key={f.key} label={f.label} value={contact[f.key]}
+              onChange={(v) => setField('contact', contact, f.key, v)} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          Demographics
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <SelectField label="Gender" value={demographics.gender} options={GENDER_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'gender', v)} />
+          <SelectField label="Race / ethnicity" value={demographics.race_ethnicity} options={RACE_ETHNICITY_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'race_ethnicity', v)} />
+          <SelectField label="Hispanic or Latino?" value={demographics.hispanic_latino} options={HISPANIC_LATINO_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'hispanic_latino', v)} />
+          <SelectField label="Veteran status" value={demographics.veteran_status} options={VETERAN_STATUS_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'veteran_status', v)} />
+          <SelectField label="Disability status" value={demographics.disability_status} options={DISABILITY_STATUS_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'disability_status', v)} />
+          <SelectField label="Age range" value={demographics.age_range} options={AGE_RANGE_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'age_range', v)} />
+          <SelectField label="Transgender?" value={demographics.transgender} options={TRANSGENDER_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'transgender', v)} />
+          <SelectField label="Sexual orientation" value={demographics.sexual_orientation} options={SEXUAL_ORIENTATION_OPTIONS}
+            onChange={(v) => setField('demographics', demographics, 'sexual_orientation', v)} />
+          <CheckboxField label="Prefer not to answer demographic questions (fill 'decline' where possible)"
+            checked={demographics.decline_demographics}
+            onChange={(v) => setField('demographics', demographics, 'decline_demographics', v)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          Work Authorization
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <YesNoField label="Authorized to work in the US?" value={workAuth.authorized_us}
+            onChange={(v) => setField('work_auth', workAuth, 'authorized_us', v)} />
+          <YesNoField label="Require visa sponsorship now?" value={workAuth.requires_sponsorship_now}
+            onChange={(v) => setField('work_auth', workAuth, 'requires_sponsorship_now', v)} />
+          <YesNoField label="Require sponsorship in the future?" value={workAuth.requires_sponsorship_future}
+            onChange={(v) => setField('work_auth', workAuth, 'requires_sponsorship_future', v)} />
+          <YesNoField label="Are you over 18?" value={workAuth.over_18}
+            onChange={(v) => setField('work_auth', workAuth, 'over_18', v)} />
+          <SelectField label="Work authorization type" value={workAuth.work_auth_type} options={WORK_AUTH_TYPE_OPTIONS}
+            onChange={(v) => setField('work_auth', workAuth, 'work_auth_type', v)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          Screening Defaults
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <YesNoField label="Willing to relocate?" value={preferences.willing_to_relocate}
+            onChange={(v) => setField('preferences', preferences, 'willing_to_relocate', v)} />
+          <YesNoField label="Willing to work remote?" value={preferences.willing_remote}
+            onChange={(v) => setField('preferences', preferences, 'willing_remote', v)} />
+          <TextField label="Notice period" value={preferences.notice_period}
+            onChange={(v) => setField('preferences', preferences, 'notice_period', v)} />
+          <TextField label="Earliest start date" value={preferences.earliest_start}
+            onChange={(v) => setField('preferences', preferences, 'earliest_start', v)} />
+          <TextField label="Referral source" value={preferences.referral_source}
+            onChange={(v) => setField('preferences', preferences, 'referral_source', v)} />
+          <TextField label="How did you hear about us?" value={preferences.how_did_you_hear}
+            onChange={(v) => setField('preferences', preferences, 'how_did_you_hear', v)} />
+          <TextField label="Desired salary" value={compensation.desired_salary}
+            onChange={(v) => setField('compensation', compensation, 'desired_salary', v)} />
+        </div>
+      </div>
+    </div>
   )
 }

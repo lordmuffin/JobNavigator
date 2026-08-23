@@ -872,6 +872,34 @@ export default function SettingsPage() {
             Placeholders: {'{persona} {qa_bank} {company} {position} {question} {max_chars}'}
           </p>
         </div>
+
+        <hr className="border-gray-200 dark:border-gray-700 my-4" />
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Application Autofill (structured)</h3>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">Fills known-answer fields directly from field/option dictionaries — no LLM call for matched fields. Unmatched free-text questions still fall back to the generated flow above. On/off and the fill trigger (one-click vs. on page load) live in the extension popup.</p>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Field Patterns (JSON)</label>
+          <textarea
+            className="w-full border rounded px-3 py-2 text-sm font-mono dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+            rows={8}
+            defaultValue={typeof settings.autofill_field_patterns === 'string' ? settings.autofill_field_patterns : JSON.stringify(settings.autofill_field_patterns || {}, null, 2)}
+            onBlur={e => { try { saveSetting('autofill_field_patterns', JSON.parse(e.target.value)) } catch { alert('Field patterns must be valid JSON') } }}
+            placeholder='{"first_name": ["first name", "given name"]}'
+          />
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Maps a known field key to the label/placeholder text patterns used to detect it on application forms.</p>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Option Synonyms (JSON)</label>
+          <textarea
+            className="w-full border rounded px-3 py-2 text-sm font-mono dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+            rows={8}
+            defaultValue={typeof settings.autofill_option_synonyms === 'string' ? settings.autofill_option_synonyms : JSON.stringify(settings.autofill_option_synonyms || {}, null, 2)}
+            onBlur={e => { try { saveSetting('autofill_option_synonyms', JSON.parse(e.target.value)) } catch { alert('Option synonyms must be valid JSON') } }}
+            placeholder='{"yes": ["yes", "y", "true"]}'
+          />
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Maps a canonical answer value to the synonym text used to match dropdown/radio options on application forms.</p>
+        </div>
       </section>
 
       {/* Email Classification */}

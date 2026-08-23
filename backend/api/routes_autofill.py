@@ -2,9 +2,11 @@
 import json as _json
 import logging
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from backend.models.db import SessionLocal, Setting, Persona
-from backend.analyzer.llm_client import call_autofill_llm
+from backend.analyzer.llm_client import call_autofill_llm, call_autofill_llm_stream
 from backend.analyzer.llm_logger import track_llm_call
+from backend.autofill_schema import ANSWER_SCHEMA, project_answers
 
 logger = logging.getLogger("jobnavigator.autofill")
 router = APIRouter(prefix="/autofill", tags=["autofill"])
@@ -23,6 +25,43 @@ def _flatten_qa_bank(bank) -> str:
     if not bank:
         return "(empty)"
     return "\n\n".join(f"Q: {e.get('question','')}\nA: {e.get('answer','')}" for e in bank)
+
+
+def _setting(db, key, default=""):
+    row = db.query(Setting).filter(Setting.key == key).first()
+    return row.value if row and row.value is not None else default
+
+
+def _json_setting(db, key, default):
+    try:
+        return _json.loads(_setting(db, key, "") or "")
+    except ValueError:
+        return default
+
+
+@router.get("/config")
+def autofill_config():
+    """Serve everything the extension needs to fill structured fields:
+    the projected fixed answers, the matching dictionaries, and the schema."""
+    db = SessionLocal()
+    try:
+        p = db.query(Persona).filter(Persona.id == 1).first()
+        persona = {
+            "contact": (p.contact if p else None) or {},
+            "work_auth": (p.work_auth if p else None) or {},
+            "demographics": (p.demographics if p else None) or {},
+            "compensation": (p.compensation if p else None) or {},
+            "preferences": (p.preferences if p else None) or {},
+        }
+        return {
+            "answers": project_answers(persona),
+            "field_patterns": _json_setting(db, "autofill_field_patterns", {}),
+            "option_synonyms": _json_setting(db, "autofill_option_synonyms", {}),
+            "schema": ANSWER_SCHEMA,
+            "decline_self_id": _setting(db, "autofill_decline_self_id", "true") == "true",
+        }
+    finally:
+        db.close()
 
 
 @router.post("/answer")
@@ -82,8 +121,9 @@ async def autofill_answer(body: dict):
               .replace("{max_chars}", str(max_chars)))
     system = "You write concise, truthful first-person job-application answers grounded only in the provided profile."
 
-    # token budget: room for the answer + JSON wrapper + any (discarded) preamble
-    max_tokens = max(256, min(1024, max_chars // 3 + 256))
+    # token budget: char budget (~4 chars/token) + headroom for the JSON wrapper
+    # and any discarded preamble. Kept tight so the answer respects max_chars.
+    max_tokens = max(96, min(900, max_chars // 4 + 96))
     try:
         async with track_llm_call("autofill", provider, model) as tracker:
             resp = await call_autofill_llm(suffix, system, max_tokens=max_tokens,
@@ -108,3 +148,81 @@ async def autofill_answer(body: dict):
         logger.error(f"autofill generation failed: {e}")
         raise HTTPException(502, "autofill generation failed") from e
     return {"answer": answer}
+
+
+@router.post("/answer/stream")
+async def autofill_answer_stream(body: dict):
+    """Server-Sent Events variant of /answer: streams the drafted answer as
+    plain-text chunks so the extension can render it into the field live.
+    Unlike /answer this asks for prose (no JSON wrapper) so tokens render
+    directly. Shares the persona/qa_bank prompt-cache prefix with /answer."""
+    question = (body.get("question") or "").strip()
+    if not question:
+        raise HTTPException(400, "question is required")
+    company = (body.get("company") or "").strip() or "(unknown company)"
+    position = (body.get("position") or "").strip() or "(unknown role)"
+
+    db = SessionLocal()
+    try:
+        persona = db.query(Persona).filter(Persona.id == 1).first()
+        len_row = db.query(Setting).filter(Setting.key == "autofill_default_length").first()
+        default_len = int(len_row.value) if len_row and (len_row.value or "").isdigit() else 120
+        persona_txt = _flatten_persona(persona) if persona else "(no persona)"
+        qa_txt = _flatten_qa_bank(persona.qa_bank if persona else [])
+    finally:
+        db.close()
+
+    max_chars = body.get("max_chars")
+    max_chars = int(max_chars) if isinstance(max_chars, (int, str)) and str(max_chars).isdigit() else default_len
+
+    # Build a dedicated PLAIN-PROSE prefix rather than reusing the /answer template
+    # (which steers the model to a JSON {"answer": ...} wrapper — that leaked into
+    # the streamed field). Persona + qa_bank is stable per user, so it still caches
+    # across refinements/length changes.
+    cached_prefix = (
+        "You are the candidate, writing concise first-person answers to job-application "
+        "questions. Use ONLY facts from the profile and reusable Q&A bank below — never "
+        "invent employers, titles, metrics, or skills.\n\n"
+        f"CANDIDATE PROFILE:\n{persona_txt}\n\n"
+        f"REUSABLE Q&A BANK:\n{qa_txt}\n"
+    )
+
+    # Refinements: the ordered list of change requests the candidate has applied to
+    # this answer ("shorter", "mention my fintech work"). Sent in full so they
+    # compound; appended to the per-question suffix so the persona/qa_bank cache
+    # prefix is untouched.
+    refinements = body.get("refinements") or []
+    refine_block = ""
+    if isinstance(refinements, list):
+        lines = "\n".join(f"- {str(r).strip()}" for r in refinements if str(r).strip())
+        if lines:
+            refine_block = f"Apply these changes the candidate requested, in order:\n{lines}\n\n"
+
+    suffix = (
+        f"Company: {company}\nRole: {position}\n"
+        f"Question: {question}\n\n"
+        f"{refine_block}"
+        f"Write a first-person answer in AT MOST {max_chars} characters — this is a "
+        f"hard limit, not a target. Be concise and finish a sentence before reaching it. "
+        f"Output only the answer text — no JSON, no quotes, no preamble, no labels."
+    )
+    system = ("You write concise, truthful first-person job-application answers grounded "
+              "only in the provided profile. Respect the character limit strictly. "
+              "Output only the answer as plain prose.")
+    # ~4 chars/token, so cap tokens near the char budget (+ small buffer) instead of
+    # the old 256-token floor that let a 250-char ask balloon past 500 chars.
+    max_tokens = max(48, min(800, max_chars // 4 + 24))
+
+    async def _events():
+        try:
+            async for chunk in call_autofill_llm_stream(suffix, system, max_tokens=max_tokens,
+                                                        cached_prefix=cached_prefix):
+                if chunk:
+                    yield f"data: {_json.dumps({'delta': chunk})}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error(f"autofill stream failed: {e}")
+            yield f"data: {_json.dumps({'error': 'autofill generation failed'})}\n\n"
+
+    return StreamingResponse(_events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
