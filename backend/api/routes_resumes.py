@@ -951,7 +951,19 @@ async def import_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
         _p = db.query(Setting).filter(Setting.key == "llm_provider").first()
         _provider = _p.value if _p and _p.value else "claude_api"
         async with track_llm_call("pdf", _provider, _model) as _tracker:
-            _resp = await call_llm(prompt=user_prompt, system=system_prompt, max_tokens=2000)
+            # 8000, not 2000. This extracts an ENTIRE resume as JSON -- header,
+            # summary, every role with its bullets, skills, education -- which for
+            # a real multi-page CV runs well past 2000 tokens on its own. The old
+            # budget truncated the response mid-string, and since the truncated
+            # prefix is still well-formed-looking JSON the failure surfaced as
+            # "LLM returned invalid JSON", pointing at the model rather than at
+            # the limit.
+            #
+            # Reasoning models make it sharper: their thinking tokens are drawn
+            # from the same budget, so the same input truncates at a different
+            # point on every attempt. Compare the tailoring path above, which
+            # rewrites a subset and gets 3000.
+            _resp = await call_llm(prompt=user_prompt, system=system_prompt, max_tokens=8000)
             _tracker.usage = _resp.get("usage", _tracker.usage)
             raw_response = _resp["text"]
 
