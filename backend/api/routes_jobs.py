@@ -342,7 +342,9 @@ async def save_from_extension(body: dict, db: Session = Depends(get_db)):
         # Backfill description if missing — share salary fallback shape with insert path.
         if description and not existing.description:
             existing.description = description
-            apply_salary_to_job(existing, comp_obj.h1b_median_salary if comp_obj else None)
+            from backend.analyzer.h1b_checker import resolve_company_h1b
+            _hd = await resolve_company_h1b(db, existing.company or "", allow_live=False)
+            apply_salary_to_job(existing, (_hd or {}).get("median_salary"))
         db.commit()
         return {"id": str(existing.id), "company": existing.company, "title": existing.title, "new": False}
 
@@ -387,16 +389,15 @@ async def save_from_extension(body: dict, db: Session = Depends(get_db)):
         status="new",
     )
 
-    # Salary extraction from description
-    if description:
-        apply_salary_to_job(job, comp_obj.h1b_median_salary if comp_obj else None)
-
-    # H-1B + body-exclusion scan (mirrors company_pages.py / linkedin_extension.py).
-    # `check_job_h1b` already sets job.h1b_verdict; no need to recompute here.
+    # H-1B + body-exclusion scan, then salary (reuses the cache median that
+    # check_job_h1b stashes). `check_job_h1b` already sets job.h1b_verdict.
     try:
         await check_job_h1b(job, db)
     except Exception as e:
         logger.warning(f"save-from-extension: analysis failed for '{title}' @ '{company}': {e}")
+
+    if description:
+        apply_salary_to_job(job, getattr(job, "_h1b_median", None))
 
     # Skip flagged jobs OR jobs that hit the search-filter set.
     if filter_reject_reason:

@@ -19,6 +19,7 @@ from backend.api.routes_resumes import router as resumes_router
 from backend.api.routes_persona import router as persona_router
 from backend.api.routes_cover_letters import router as cover_letters_router
 from backend.api.routes_autofill import router as autofill_router
+from backend.api.routes_llm import router as llm_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("jobnavigator")
@@ -49,6 +50,13 @@ async def lifespan(app: FastAPI):
     configure_scheduler()
     scheduler.start()
     logger.info("Database initialized, seeded, scheduler started.")
+
+    # Warm the OpenRouter live-pricing cache used for LLM cost logging (non-fatal).
+    try:
+        from backend.analyzer.llm_cost import refresh_openrouter_prices
+        await refresh_openrouter_prices(force=True)
+    except Exception as e:
+        logger.warning(f"OpenRouter price warmup failed: {e}")
 
     yield
 
@@ -214,6 +222,7 @@ app.include_router(resumes_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
 app.include_router(cover_letters_router, prefix="/api")
 app.include_router(autofill_router, prefix="/api")
+app.include_router(llm_router, prefix="/api")
 
 
 @app.get("/health", tags=["system"], summary="Health check")
@@ -749,6 +758,17 @@ def get_scheduler_jobs():
         "auto_reject": ("/auto-reject/run", "auto_reject"),
     }
 
+    # Human-friendly display names for the core scheduler jobs.
+    display_names = {
+        "scrape_all": "Scrape all searches & companies",
+        "email_check": "Check Gmail for replies",
+        "daily_digest": "Send daily Telegram digest",
+        "h1b_refresh": "Refresh H-1B / LCA data",
+        "db_backup": "Back up database (pg_dump)",
+        "job_cleanup": "Clean up stale skipped jobs",
+        "auto_reject": "Auto-reject ghosted applications",
+    }
+
     jobs = scheduler.get_jobs()
     result = []
     for job in jobs:
@@ -771,7 +791,7 @@ def get_scheduler_jobs():
 
         result.append({
             "id": job.id,
-            "name": job.name or job.id,
+            "name": display_names.get(job.id, job.name or job.id),
             "schedule": schedule,
             "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
             "pending": job.pending,
@@ -1077,12 +1097,53 @@ def get_stats_timeline(days: int = 30):
         rows = db.query(
             cast(Job.discovered_at, Date).label("date"),
             func.count().label("total"),
+            func.count().filter(Job.status == "new").label("new"),
             func.count().filter(Job.status == "saved").label("saved"),
             func.count().filter(Job.status == "applied").label("applied"),
+            func.count().filter(Job.status == "skip").label("skipped"),
+            # 'ignored' = auto-filtered (title/body/H-1B), saved only for dedup — never shown in the feed.
+            func.count().filter(Job.status == "ignored").label("filtered"),
         ).filter(Job.discovered_at >= cutoff).group_by(
             cast(Job.discovered_at, Date)
         ).order_by(cast(Job.discovered_at, Date)).all()
-        return [{"date": str(r.date), "total": r.total, "saved": r.saved, "applied": r.applied} for r in rows]
+        return [{
+            "date": str(r.date), "total": r.total,
+            "new": r.new, "saved": r.saved, "applied": r.applied,
+            "skipped": r.skipped, "filtered": r.filtered,
+        } for r in rows]
+    finally:
+        db.close()
+
+
+@app.get("/api/health/entities", tags=["stats"], summary="Companies/searches needing attention")
+def get_failing_entities(window: int = 3):
+    """Active companies + searches whose last `window` scrapes ALL errored or returned
+    0 results — a likely broken/moved ATS or dead URL. Computed from ScrapeLog."""
+    from backend.models.db import ScrapeLog, Company, Search
+    db = SessionLocal()
+    try:
+        def _reason(entity_col, entity_id):
+            recent = (db.query(ScrapeLog).filter(entity_col == entity_id)
+                      .order_by(ScrapeLog.ran_at.desc()).limit(window).all())
+            if len(recent) < window or not all(r.error or r.is_warning for r in recent):
+                return None
+            err = next((r.error for r in recent if r.error), None)
+            return err[:160] if err else f"No results in the last {window} scrapes"
+
+        companies = []
+        for c in db.query(Company).filter(Company.active == True).all():
+            reason = _reason(ScrapeLog.company_id, c.id)
+            if reason:
+                companies.append({"id": str(c.id), "name": c.name, "reason": reason})
+
+        searches = []
+        for s in db.query(Search).filter(Search.active == True).all():
+            reason = _reason(ScrapeLog.search_id, s.id)
+            if reason:
+                searches.append({"id": str(s.id), "name": s.name, "reason": reason})
+
+        return {"companies": companies, "searches": searches,
+                "count": len(companies) + len(searches)}
     finally:
         db.close()
 
@@ -1147,10 +1208,12 @@ def _llm_costs_stats(days: int = 7) -> dict:
     from datetime import datetime, timedelta, timezone
     from backend.models.db import LlmCallLog
 
-    since = datetime.now(timezone.utc) - timedelta(days=days)
     db = SessionLocal()
     try:
-        q = db.query(LlmCallLog).filter(LlmCallLog.created_at >= since)
+        q = db.query(LlmCallLog)
+        if days and days > 0:  # days <= 0 → all time (no date filter)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
+            q = q.filter(LlmCallLog.created_at >= since)
         rows = q.all()
 
         total_cost = sum(r.cost_usd or 0 for r in rows)

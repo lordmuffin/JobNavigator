@@ -1,6 +1,6 @@
 # JobNavigator
 
-Self-hosted job search automation — scrape any career portal or use job aggregator, AI scoring against your profile, resume tailoring with custom themes, Telegram notifications and tracking in one system. 
+Self-hosted job search automation — scrape any career portal or use job aggregator, AI scoring against your profile, resume tailoring with custom themes, persona-based application auto-fill, Telegram notifications and tracking in one system. 
 
 <p align="center">
   <img src="docs/jobnavigator.gif" alt="JobNavigator Demo" width="100%">
@@ -10,24 +10,24 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              JOB DISCOVERY                                  │
+│                               JOB DISCOVERY                                 │
 │                                                                             │
-│   Career Pages        │  Aggregators            │  Chrome Extension         │
-│                       │                         │                           │
-│   Any site via        │  JobSpy: LinkedIn,      │  Passive LinkedIn         │
-│   Playwright          │  Indeed, ZipRecruiter,  │  capture while            │
-│                       │  Google Jobs            │  browsing                 │
-│   11 ATS endpoints:   │                         │                           │
-│   Workday, Greenhouse │  LinkedIn Personal      │  Save any job from        │
-│   Lever, Ashby,       │  collections            │  any page                 │
-│   Oracle, Phenom,     │                         │                           │
-│   TalentBrew, Rippling│  Levels.fyi             │                           │
-│   SmartRecruiters,    │                         │                           │
-│   + custom            │                         │                           │
-│                       │                         │                           │
-└───────────────────────┴────────────┬────────────┴───────────────────────────┘
-                                     │
-                                     ▼
+│   Career Pages          │  Aggregators            │  Chrome Extension       │
+│                         │                         │                         │
+│   Any site via          │  JobSpy: LinkedIn,      │  Passive LinkedIn       │
+│   Playwright            │  Indeed, ZipRecruiter,  │  capture while          │
+│                         │  Google Jobs            │  browsing               │
+│   11 ATS endpoints:     │                         │                         │
+│   Workday, Greenhouse   │  LinkedIn Personal      │  Auto-fill based on     │
+│   Lever, Ashby,         │  collections            │  your persona input     │
+│   Oracle, Phenom,       │                         │  and question bank      │
+│   TalentBrew, Rippling  │  Jobright.ai            │                         │
+│   SmartRecruiters,      │  Levels.fyi             │  Save any job from      │
+│   + custom              │  freehire.me            │  any page               │
+│                         │                         │                         │
+└─────────────────────────┴───────────┬─────────────┴─────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                PROCESSING                                   │
 │                                                                             │
@@ -36,41 +36,41 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 │   H-1B ─────── Company LCA data from MyVisaJobs (cached)                    │
 │   Salary ───── Extracted from posting, H-1B data, description               │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                 JOB FEED                                    │
 │                                                                             │
 │   Review ───── Dynamic filters, sorting, detail panel                       │
 │   Decide ───── Save promising jobs, skip the rest, score with AI            │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                             AI RESUME SCORING                               │
+│                              AI RESUME SCORING                              │
 │                                                                             │
-│   Providers ── Claude API, Claude CLI, OpenAI, Ollama, OpenAI-compatible    │
+│   Providers ── Claude API, Claude CLI, OpenAI, Ollama                       │
 │   Depths ───── Light (scores only) or Full (report + keyword analysis)      │
 │   Multi ────── Score against multiple resumes, compare fit per role         │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          RESUME + COVER LETTER                              │
+│                           RESUME + COVER LETTER                             │
 │                                                                             │
-│   Templates ── 8 resume + 8 cover-letter, auto-discovered (add your own)    │
+│   Templates ── 8 resume + 8 cover-letter, auto-discovered (add your own!)   │
 │   AI Tailor ── Rewrites resume bullets/keywords from the scoring report     │
 │   AI Letter ── Job-specific cover letters from resume + JD, voice presets   │
-│   Export ───── PDF via Playwright, page count indicator                     │
+│   Export ───── Live-preview PDF via Playwright with export                  │
 │                                                                             │
-└────────────────────────────────────┬────────────────────────────────────────┘
-                                     │
-                                     ▼
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                                  TRACK                                      │
+│                                   TRACK                                     │
 │                                                                             │
 │   Tracer ───── Unique links per resume/letter, tracks who opened them       │
 │   Gmail ────── Auto-detects responses, updates application status           │
@@ -83,7 +83,7 @@ Self-hosted job search automation — scrape any career portal or use job aggreg
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Source Discovery** | 6 scraping tiers: career pages (Playwright + 11 ATS), JobSpy (4 boards), LinkedIn Personal, Levels.fyi, Jobright.ai, Chrome Extension |
+| **Multi-Source Discovery** | 7 scraping tiers: career pages (Playwright + 11 ATS), JobSpy (4 boards), LinkedIn Personal, Levels.fyi, Jobright.ai, freehire.me, Chrome Extension |
 | **AI Resume Scoring** | Multi-provider (Claude, OpenAI, Ollama), light/full depth, per-resume comparison, keyword analysis, requirement mapping, ATS tips. **Prompt caching** on Anthropic cuts repeat-scoring cost ~50%. |
 | **Resume Builder** | 8 templates (auto-discovered - add yours), AI tailoring per job, PDF export, tracer links to track opens (cover letters too) |
 | **Cover Letters** | AI-generated per job, grounded in the paired resume + persona; editable voice presets, 8 templates, PDF export, prompt-cached generation |
@@ -124,7 +124,7 @@ Open `http://localhost`. On first run, click "Sign In" with a blank API key to p
 **What it does:**
 - **Unblocks the Job Feed preview.** Strips frame-blocking headers (`X-Frame-Options` / CSP `frame-ancestors`) so job postings render in the in-app `iframe` preview pane instead of showing blank.
 - **Captures your LinkedIn collections.** As you browse your personalized **Recommended** and **Top Applicant** collections (`linkedin.com/jobs/collections/*`), it passively collects the job IDs, then imports them into the Job Feed with full details (title, company, description, real apply URL).
-- **Fills application answers.** On any job site, focus a free-text question and click the Navigator button to generate a first-person answer grounded in your **Persona** + saved **Q&A bank** (no résumé text). Review it with a length picker, then insert, copy, or save it back to the bank. Enable it with the **Application Autofill** toggle in the popup, and fill out your Persona (`/persona`) first so answers have something to ground on. Configure the model/prompt in **Settings → AI**.
+- **Fills application answers.** On any job site, focus a free-text question and click the Navigator button to generate a first-person answer based on your **Persona** + saved **Q&A bank**. Enable it with the **Application Autofill** toggle in the popup, and fill out your Persona (`/persona`) first so answers have something to ground on. Configure the model/prompt in **Settings → AI**.
 
 **Install:**
 1. `chrome://extensions/` → Developer mode → Load unpacked → select `extension/`

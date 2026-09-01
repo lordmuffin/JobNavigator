@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import api from '../api'
+import InfoTip from './InfoTip'
 import { Trash2, X } from 'lucide-react'
 
 const COLUMNS = [
@@ -150,7 +151,15 @@ export default function ApplicationBoard() {
   return (
     <div className="p-6 h-full">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Application Board</h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Application Board</h1>
+          <InfoTip title="Application Board">
+            Kanban pipeline of every job you've applied to. Drag a card between columns to change its
+            status — each move is saved with a timestamped history that feeds the Stats flow diagram.
+            Cards appear here from the Job Feed's <b>Applied</b> button, the Chrome extension, and Gmail
+            reply detection. Filter by company; companies with only rejections group under <b>Other – Rejected</b>.
+          </InfoTip>
+        </div>
         <span className="text-sm text-gray-500 dark:text-gray-400">{filteredApps.length} of {apps.length} applications</span>
       </div>
 

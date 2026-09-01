@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column, String, Integer, Float, Boolean, Text, DateTime, Date,
-    ForeignKey, JSON, Index, create_engine, text
+    ForeignKey, JSON, Index, UniqueConstraint, create_engine, text
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import backref, column_property, declarative_base, deferred, relationship, sessionmaker
@@ -94,13 +94,33 @@ class Company(Base):
     jobspy_search_term = Column(String, nullable=True)
     aliases = Column(JSON, default=[])               # alternative company names for matching
     auto_scoring_depth = Column(String, default="off")  # off | light | full
-    h1b_slug = Column(String, nullable=True)
-    h1b_lca_count = Column(Integer, nullable=True)
-    h1b_approval_rate = Column(Float, nullable=True)
-    h1b_median_salary = Column(Integer, nullable=True)
-    h1b_last_checked = Column(DateTime(timezone=True), nullable=True)
+    h1b_slug = Column(String, nullable=True)  # per-company MyVisaJobs slug override
+    # H-1B metrics moved to the VisaCache table (single source of truth, keyed by
+    # company name + country) so search-sourced companies not in this table are covered.
     last_scraped_at = Column(DateTime(timezone=True), nullable=True)
     notes = Column(Text, nullable=True)
+
+
+class VisaCache(Base):
+    """Cached work-visa/immigration data per company name (independent of the
+    companies table), so jobs from any source can show H-1B info. `country`
+    keeps it extensible (US H-1B now; CA/UK later). `has_data=False` is a
+    negative-cache entry so companies with no records aren't re-fetched."""
+    __tablename__ = "visa_cache"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name_key = Column(String, nullable=False, index=True)   # lowercased company name
+    country = Column(String, nullable=False, default="US")
+    display_name = Column(String, nullable=True)
+    slug = Column(String, nullable=True)
+    lca_count = Column(Integer, nullable=True)
+    approval_rate = Column(Float, nullable=True)
+    median_salary = Column(Integer, nullable=True)
+    has_data = Column(Boolean, default=False)
+    fetched_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(String, nullable=True)
+
+    __table_args__ = (UniqueConstraint("name_key", "country", name="uq_visa_cache_name_country"),)
 
 
 # ── Jobs ─────────────────────────────────────────────────────────────────────

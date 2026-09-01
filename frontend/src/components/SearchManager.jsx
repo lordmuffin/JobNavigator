@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import api from '../api'
-import { Plus, Play, Trash2, Edit2, Check, X, FlaskConical, ExternalLink, Loader2 } from 'lucide-react'
+import InfoTip from './InfoTip'
+import { Plus, Play, Trash2, Edit2, Check, X, FlaskConical, ExternalLink, Loader2, AlertTriangle } from 'lucide-react'
 
 const SOURCES = [
   { value: 'linkedin', label: 'LinkedIn' },
@@ -24,6 +25,7 @@ const SOURCE_COLORS = {
   levels_fyi: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
   linkedin_personal: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
   jobright: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+  freehire: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
 }
 
 const DEFAULT_FORM = {
@@ -39,6 +41,12 @@ const DEFAULT_FORM = {
 
 export default function SearchManager() {
   const [searches, setSearches] = useState([])
+  const [downMap, setDownMap] = useState({})  // search id -> failing-scrape reason
+  useEffect(() => {
+    api.get('/health/entities').then(({ data }) => {
+      const m = {}; (data.searches || []).forEach(s => { m[s.id] = s.reason }); setDownMap(m)
+    }).catch(() => {})
+  }, [])
   const [editing, setEditing] = useState(null) // null | 'new' | search_id
   const [editData, setEditData] = useState({})
   const [running, setRunning] = useState(null)
@@ -215,6 +223,7 @@ export default function SearchManager() {
               <option value="levels_fyi">Levels.fyi</option>
               <option value="linkedin_personal">LinkedIn Personal</option>
               <option value="jobright">Jobright.ai</option>
+              <option value="freehire">freehire.me</option>
             </select>
           )}
         </div>
@@ -280,6 +289,26 @@ export default function SearchManager() {
             <input type="text" value={ed.search_term} onChange={e => setEd({ search_term: e.target.value })}
               placeholder="e.g. technical program manager" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
           </div>
+        ) : ed.search_mode === 'freehire' ? (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Search Term <span className="text-gray-400">(optional — ANDed with the URL as q)</span></label>
+              <input type="text" value={ed.search_term} onChange={e => setEd({ search_term: e.target.value })}
+                placeholder="e.g. golang backend" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Leave blank if your URL already has your filters. A term narrows further, and must appear in the posting text.</p>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">freehire.me URL <span className="text-gray-400">(optional — its filters are forwarded)</span></label>
+              <input type="text" value={ed.direct_url} onChange={e => setEd({ direct_url: e.target.value })}
+                placeholder="https://freehire.me/?role=backend&seniority=senior&countries=us" className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Paste a search from freehire.me; its filters (role, seniority, countries, collections, posted_within_days…) pass straight through.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Results Wanted</label>
+              <input type="number" value={ed.results_wanted} onChange={e => setEd({ results_wanted: parseInt(e.target.value) || 100 })}
+                min={1} className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+            </div>
+          </>
         ) : (
           <div className={ed.search_mode === 'levels_fyi' ? 'col-span-2' : ''}>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -299,7 +328,7 @@ export default function SearchManager() {
               min={1} max={100} className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
           </div>
         )}
-        {ed.search_mode !== 'levels_fyi' && ed.search_mode !== 'linkedin_personal' && ed.search_mode !== 'jobright' && !isExtensionMode(ed.search_mode) && (
+        {ed.search_mode !== 'levels_fyi' && ed.search_mode !== 'linkedin_personal' && ed.search_mode !== 'jobright' && ed.search_mode !== 'freehire' && !isExtensionMode(ed.search_mode) && (
           <>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Location</label>
@@ -436,7 +465,16 @@ export default function SearchManager() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Search Manager</h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Search Manager</h1>
+          <InfoTip title="Search Manager">
+            Saved job searches that run on a schedule. Each has a <b>mode</b>: keyword boards (JobSpy),
+            Levels.fyi, LinkedIn Personal, Jobright.ai, freehire.me, plus the two passive Chrome-extension
+            captures. Use the <b>flask</b> icon to dry-run (preview + per-job filter diagnostics without
+            saving) and <b>Play</b> to run now. Per-search interval, title/company filters, and auto-score
+            are configurable.
+          </InfoTip>
+        </div>
         <button onClick={() => { setEditing('new'); setEditData({ ...DEFAULT_FORM }) }}
           className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
           <Plus size={14} /> New Search
@@ -658,6 +696,11 @@ export default function SearchManager() {
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
+                  {downMap[s.id] && (
+                    <span title={`Needs attention — ${downMap[s.id]}`} className="text-amber-500 cursor-help">
+                      <AlertTriangle size={14} />
+                    </span>
+                  )}
                   <h3 className="font-medium text-gray-900 dark:text-gray-100">{s.name}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     s.search_mode === 'levels_fyi' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' :
@@ -665,8 +708,9 @@ export default function SearchManager() {
                     s.search_mode === 'linkedin_extension' ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' :
                     s.search_mode === 'extension' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300' :
                     s.search_mode === 'jobright' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300' :
+                    s.search_mode === 'freehire' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
                     s.search_mode === 'url' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                  }`}>{s.search_mode === 'levels_fyi' ? 'Levels.fyi' : s.search_mode === 'linkedin_personal' ? 'LinkedIn Personal' : s.search_mode === 'linkedin_extension' ? 'Extension LI' : s.search_mode === 'extension' ? 'Extension' : s.search_mode === 'jobright' ? 'Jobright.ai' : s.search_mode === 'keyword' ? 'JobSpy' : s.search_mode}</span>
+                  }`}>{s.search_mode === 'levels_fyi' ? 'Levels.fyi' : s.search_mode === 'linkedin_personal' ? 'LinkedIn Personal' : s.search_mode === 'linkedin_extension' ? 'Extension LI' : s.search_mode === 'extension' ? 'Extension' : s.search_mode === 'jobright' ? 'Jobright.ai' : s.search_mode === 'freehire' ? 'freehire.me' : s.search_mode === 'keyword' ? 'JobSpy' : s.search_mode}</span>
                 </div>
                 {editing !== s.id && (
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -707,7 +751,7 @@ export default function SearchManager() {
                       </span>
                     )}
                     {!isExtensionMode(s.search_mode) && (
-                      <button onClick={() => testSearch(s.id)} disabled={testing === s.id || !['keyword', 'levels_fyi', 'linkedin_personal', 'jobright'].includes(s.search_mode)}
+                      <button onClick={() => testSearch(s.id)} disabled={testing === s.id || !['keyword', 'levels_fyi', 'linkedin_personal', 'jobright', 'freehire'].includes(s.search_mode)}
                         className="p-1.5 rounded hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 disabled:opacity-40" title="Test Search (dry run)">
                         {testing === s.id ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />}
                       </button>

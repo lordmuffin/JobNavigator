@@ -156,3 +156,6 @@ resumes-example/
 
 # SDD / superpowers scratch (dev process artifacts)
 .superpowers/
+
+# Extension source lib is NOT a build dir — keep it tracked
+!extension/lib/

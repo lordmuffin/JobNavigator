@@ -27,11 +27,12 @@ def test_sonnet_pricing_with_cache_write():
     assert cost == pytest.approx(0.0105, rel=0.01)
 
 
-def test_sonnet_5_same_rate_card_as_4_6():
-    """Sonnet 5 sticker price matches Sonnet 4.6: $3/$15."""
-    p = get_pricing("claude_api", "claude-sonnet-5")
-    assert p["input_per_mtok"] == 3.0
-    assert p["output_per_mtok"] == 15.0
+def test_sonnet_5_is_2_10_distinct_from_4_6():
+    """Sonnet 5 is now $2/$10 (standard); Sonnet 4.6 stays $3/$15."""
+    p5 = get_pricing("claude_api", "claude-sonnet-5")
+    assert p5["input_per_mtok"] == 2.0 and p5["output_per_mtok"] == 10.0
+    p46 = get_pricing("claude_api", "claude-sonnet-4-6")
+    assert p46["input_per_mtok"] == 3.0 and p46["output_per_mtok"] == 15.0
 
 
 @pytest.mark.parametrize("model", ["claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"])

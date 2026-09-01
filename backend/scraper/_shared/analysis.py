@@ -26,6 +26,11 @@ async def analyze_inline(job, db=None, h1b_median=None) -> None:
             getattr(job, "id", "?"), e,
         )
 
+    # Median salary comes from the VisaCache entry check_job_h1b just resolved and
+    # stashed on the job (no extra lookup). Callers no longer pass a company median.
+    if h1b_median is None:
+        h1b_median = getattr(job, "_h1b_median", None)
+
     try:
         apply_salary_to_job(job, h1b_median=h1b_median)
     except Exception as e:

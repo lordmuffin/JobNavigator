@@ -44,6 +44,9 @@ DEFAULT_SETTINGS = {
     "llm_fallback_provider": ("", "Fallback LLM provider (empty = no fallback)"),
     "llm_fallback_model": ("", "Fallback model name"),
     "llm_fallback_api_key": ("", "API key for fallback provider (OpenAI)"),
+    "scoring_llm_provider": ("", "Resume scoring provider override (empty = use Primary)"),
+    "scoring_llm_model": ("", "Resume scoring model override (empty = use Primary)"),
+    "scoring_llm_api_key": ("", "API key for the scoring provider override"),
     "llm_models_list": (json.dumps([
         {"provider": "claude_api", "model": "claude-sonnet-5"},
         {"provider": "claude_api", "model": "claude-sonnet-4-6"},
@@ -79,6 +82,19 @@ DEFAULT_SETTINGS = {
         {"provider": "ollama", "model": "mistral:7b"},
         {"provider": "ollama", "model": "gemma2:9b"},
         {"provider": "ollama", "model": "phi3:14b"},
+        # OpenRouter — one key reaches every vendor; slugs are vendor-prefixed.
+        # A popular starter set; the full ~420 are fetchable in Settings via the API.
+        {"provider": "openrouter", "model": "anthropic/claude-opus-5"},
+        {"provider": "openrouter", "model": "anthropic/claude-sonnet-5"},
+        {"provider": "openrouter", "model": "openai/gpt-5.6-luna"},
+        {"provider": "openrouter", "model": "openai/o3-pro"},
+        {"provider": "openrouter", "model": "openai/o4-mini-high"},
+        {"provider": "openrouter", "model": "google/gemini-3.7-flash"},
+        {"provider": "openrouter", "model": "deepseek/deepseek-v4-pro"},
+        {"provider": "openrouter", "model": "deepseek/deepseek-v3.2"},
+        {"provider": "openrouter", "model": "meta-llama/llama-4-maverick"},
+        {"provider": "openrouter", "model": "x-ai/grok-4.6"},
+        {"provider": "openrouter", "model": "mistralai/mistral-large-2512"},
     ]), "Known LLM models per provider (JSON array, user can add custom entries)"),
     "scoring_max_concurrent": ("5", "Max parallel scoring jobs (others queue until a slot opens)"),
     "tailoring_max_concurrent": ("2", "Max concurrent resume-tailoring LLM calls"),
@@ -130,6 +146,104 @@ DEFAULT_SETTINGS = {
         {"id": "storytelling", "label": "Storytelling", "instruction": "Open with a brief hook or narrative, then connect it to the role."},
     ]), "Editable cover-letter voice presets: list of {id, label, instruction}. The selected preset's instruction is injected into the generation prompt."),
     "cover_letter_default_voice": ("professional", "Default voice preset id for new cover letters (must match an id in cover_letter_voice_presets)"),
+    "autofill_field_patterns": (json.dumps({
+        "gender": ["gender", "what is your gender", "gender identity"],
+        "race_ethnicity": ["race", "ethnicity", "race/ethnicity", "racial background", "ethnicities"],
+        "veteran_status": ["veteran", "protected veteran", "vevraa"],
+        "hispanic_latino": ["hispanic or latino", "hispanic/latino", "are you hispanic", "hispanic latino"],
+        "disability_status": ["disability", "disabled", "section 503"],
+        "age_range": ["current age", "your age", "age range", "how old", "what is your age"],
+        "transgender": ["transgender", "identify as transgender", "trans"],
+        "sexual_orientation": ["sexual orientation", "your sexual orientation", "how do you identify your sexual"],
+        "authorized_us": ["authorized to work", "legally authorized", "work authorization"],
+        "requires_sponsorship_now": ["require sponsorship", "need sponsorship", "visa sponsorship", "require immigration", "immigration sponsorship"],
+        "requires_sponsorship_future": ["future sponsorship", "sponsorship in the future"],
+        "over_18": ["over 18", "at least 18", "18 years of age"],
+        "first_name": ["first name", "given name"],
+        "last_name": ["last name", "surname", "family name"],
+        "full_name": ["full name", "your name", "legal name"],
+        "email": ["email"],
+        "phone": ["phone", "mobile", "telephone"],
+        "city": ["city", "current location", "location"],
+        "state": ["state", "province"],
+        "country": ["country"],
+        "linkedin": ["linkedin"],
+        "github": ["github"],
+        "portfolio": ["portfolio", "personal website", "website"],
+        "current_company": ["current company", "current employer"],
+        "willing_to_relocate": ["relocate", "willing to relocate"],
+        "willing_remote": ["work remotely", "remote work"],
+        "desired_salary": ["desired salary", "salary expectation", "expected salary", "compensation expectation"],
+        "notice_period": ["notice period"],
+        "earliest_start": ["start date", "available to start", "earliest start"],
+        "referral_source": ["referral source", "referred by"],
+        "how_did_you_hear": ["how did you hear"],
+    }), "Editable dictionary: canonical autofill key -> list of label synonyms used to match a form field to an answer"),
+    "autofill_option_synonyms": (json.dumps({
+        "veteran_status": {
+            "protected_veteran": ["i am a protected veteran", "identify as one or more", "yes"],
+            "not_protected_veteran": ["not a protected veteran", "not a veteran", "no"],
+            "decline": ["decline", "don't wish to answer", "do not wish to answer", "prefer not"],
+        },
+        "hispanic_latino": {
+            "yes": ["hispanic or latino", "yes, i am", "yes"],
+            "no": ["not hispanic or latino", "no, i am not", "no"],
+            "decline": ["decline", "don't wish to answer", "prefer not"],
+        },
+        "disability_status": {
+            "yes": ["yes, i have a disability", "yes", "i have a disability"],
+            "no": ["no, i don't have a disability", "no", "do not have a disability"],
+            "decline": ["decline", "do not want to answer", "prefer not"],
+        },
+        "gender": {
+            "male": ["male", "man"],
+            "female": ["female", "woman"],
+            "nonbinary": ["non-binary", "nonbinary", "other"],
+            "decline": ["decline", "prefer not", "don't wish"],
+        },
+        "race_ethnicity": {
+            "hispanic_latino": ["hispanic", "latino", "latinx"],
+            "white": ["white"],
+            "black": ["black", "african american"],
+            "asian": ["asian"],
+            "native_american": ["native american", "alaska native", "american indian"],
+            "pacific_islander": ["pacific islander", "native hawaiian"],
+            "two_or_more": ["two or more"],
+            "decline": ["decline", "prefer not", "don't wish"],
+        },
+        "work_auth_type": {
+            "citizen": ["u.s. citizen", "us citizen", "citizen"],
+            "permanent_resident": ["permanent resident", "green card"],
+            "visa": ["visa", "work visa"],
+            "other": ["other"],
+        },
+        "age_range": {
+            "under_30": ["under 30", "under 30 years", "less than 30"],
+            "30_39": ["30-39", "30 - 39", "30 to 39"],
+            "40_49": ["40-49", "40 - 49", "40 to 49"],
+            "50_59": ["50-59", "50 - 59", "50 to 59"],
+            "60_plus": ["60 or older", "60+", "60 and over", "over 60"],
+            "decline": ["prefer not to answer", "decline", "don't wish", "do not wish"],
+        },
+        "transgender": {
+            "yes": ["yes"],
+            "no": ["no"],
+            "decline": ["prefer not to answer", "decline", "don't wish", "do not wish"],
+        },
+        "sexual_orientation": {
+            "heterosexual": ["heterosexual", "straight"],
+            "gay": ["gay"],
+            "lesbian": ["lesbian"],
+            "bisexual": ["bisexual"],
+            "queer": ["queer"],
+            "other": ["other"],
+            "decline": ["prefer not to answer", "decline", "don't wish", "do not wish"],
+        },
+        "_bool": {
+            "true": ["yes", "true"],
+            "false": ["no", "false"],
+        },
+    }), "Editable dictionary: enum key -> {enum value -> list of option-text synonyms}; '_bool' maps yes/no. Used to pick the right option on a form."),
     "tracer_links_enabled": ("false", "Enable URL rewriting in PDF generation with tracking links"),
     "tracer_links_base_url": ("", "Public base URL for tracer links (e.g., https://yourdomain.com)"),
     "tracer_links_url_style": ("path", "URL format: path or param. Token: random or job_id. Combinations: path, param, path_jobid, param_jobid"),
@@ -161,6 +275,7 @@ DEFAULT_SETTINGS = {
     "autofill_llm_provider": ("", "LLM provider for application autofill (empty = use primary llm_provider)"),
     "autofill_llm_model": ("", "LLM model for application autofill (empty = use primary llm_model)"),
     "autofill_default_length": ("250", "Default target character length for autofill answers when a field has no maxlength"),
+    "autofill_decline_self_id": ("true", "When on, diversity self-ID questions not covered by the persona (pronouns, marital status, etc.) auto-select 'I prefer not to answer' instead of being left blank"),
     "autofill_prompt": (
         "You are the candidate, writing a short first-person answer to a job-application question.\n\n"
         "Use ONLY facts from the candidate profile and the reusable Q&A bank below. Never invent employers, "
@@ -464,6 +579,10 @@ def cleanup_removed_settings(db):
         # 2026-07: openai_compat provider removed — these endpoints were only for it
         "llm_base_url",
         "llm_fallback_base_url",
+        # 2026-08: structured-autofill on/off + trigger live in the extension popup,
+        # not server settings — they're per-browser preferences.
+        "autofill_structured_enabled",
+        "autofill_structured_trigger",
     ]
     for key in removed_keys:
         row = db.query(Setting).filter(Setting.key == key).first()
@@ -500,31 +619,48 @@ def migrate_llm_settings(db):
     - Re-point any provider setting still on openai_compat to openai.
     - Rename the dated claude-haiku-4-5-20251001 model setting values to the alias.
     """
+    # Additive seed: default models are offered ONCE (tracked in llm_seeded_models).
+    # After that the user's list is authoritative — deleting a default keeps it gone
+    # across restarts, while genuinely-new defaults still propagate to existing installs.
     row = db.query(Setting).filter(Setting.key == "llm_models_list").first()
+    seen_row = db.query(Setting).filter(Setting.key == "llm_seeded_models").first()
+    if seen_row is None:
+        seen_row = Setting(key="llm_seeded_models", value="[]",
+                           description="Internal: default model keys already offered, so user deletions persist across restarts")
+        db.add(seen_row)
     if row and row.value:
         try:
             current = json.loads(row.value)
         except (ValueError, TypeError):
             current = []
+        current = [m for m in current if m.get("provider") != "openai_compat"]
         default_list = json.loads(DEFAULT_SETTINGS["llm_models_list"][0])
-        custom = [m for m in current
-                  if m.get("custom") and m.get("provider") != "openai_compat"]
-        merged = default_list + [m for m in custom
-                                 if not any(d["provider"] == m.get("provider")
-                                            and d["model"] == m.get("model")
-                                            for d in default_list)]
-        if merged != current:
-            row.value = json.dumps(merged)
+        try:
+            seen = set(json.loads(seen_row.value or "[]"))
+        except (ValueError, TypeError):
+            seen = set()
+        mkey = lambda m: f'{m.get("provider")}|{m.get("model")}'
+        have = {mkey(m) for m in current}
+        for d in default_list:
+            dk = mkey(d)
+            if dk not in seen and dk not in have:  # new default the user never removed
+                current.append(d)
+                have.add(dk)
+            seen.add(dk)
+        seen_row.value = json.dumps(sorted(seen))
+        row.value = json.dumps(current)
 
     provider_keys = ["llm_provider", "llm_fallback_provider", "email_llm_provider",
-                     "cv_tailor_llm_provider", "cover_letter_llm_provider", "autofill_llm_provider"]
+                     "cv_tailor_llm_provider", "cover_letter_llm_provider", "autofill_llm_provider",
+                     "scoring_llm_provider"]
     for key in provider_keys:
         r = db.query(Setting).filter(Setting.key == key).first()
         if r and r.value == "openai_compat":
             r.value = "openai"
 
     model_keys = ["llm_model", "llm_fallback_model", "email_llm_model",
-                  "cv_tailor_llm_model", "cover_letter_llm_model", "autofill_llm_model"]
+                  "cv_tailor_llm_model", "cover_letter_llm_model", "autofill_llm_model",
+                  "scoring_llm_model"]
     for key in model_keys:
         r = db.query(Setting).filter(Setting.key == key).first()
         if r and r.value == "claude-haiku-4-5-20251001":
@@ -734,11 +870,97 @@ def seed_persona(db):
     logger.info("Persona singleton (id=1) seeded with empty nodes")
 
 
+def migrate_h1b_to_visa_cache(db):
+    """One-time: copy legacy companies.h1b_* into the visa_cache table, then drop
+    those columns. Idempotent — no-op once the columns are gone (fresh installs
+    never have them). Postgres only for the DROP; SQLite/tests skip via detection."""
+    from backend.models.db import VisaCache
+    from sqlalchemy import text
+
+    bind = db.get_bind()
+    dialect = bind.dialect.name
+    try:
+        if dialect == "postgresql":
+            cols = {r[0] for r in db.execute(text(
+                "select column_name from information_schema.columns where table_name='companies'"))}
+        elif dialect == "sqlite":
+            cols = {r[1] for r in db.execute(text("PRAGMA table_info(companies)"))}
+        else:
+            return
+    except Exception:
+        return
+    if "h1b_lca_count" not in cols:
+        return  # already migrated, or fresh install
+
+    # 1) Seed visa_cache from the legacy columns (rows with data or a slug).
+    try:
+        rows = db.execute(text(
+            "select name, h1b_slug, h1b_lca_count, h1b_approval_rate, h1b_median_salary, "
+            "h1b_last_checked from companies")).fetchall()
+    except Exception:
+        rows = []
+    existing = {r.name_key for r in db.query(VisaCache).all()}
+    seeded = 0
+    for name, slug, lca, appr, med, checked in rows:
+        key = (name or "").strip().lower()
+        if not key or key in existing:
+            continue
+        has = bool((lca or 0) > 0 or (med or 0) > 0)
+        if not (has or slug):
+            continue
+        db.add(VisaCache(name_key=key, country="US", display_name=name, slug=slug,
+                         lca_count=lca, approval_rate=appr, median_salary=med,
+                         has_data=has, fetched_at=checked))
+        existing.add(key)
+        seeded += 1
+    db.commit()
+    logger.info("migrate_h1b_to_visa_cache: seeded %d companies into visa_cache", seeded)
+
+    # 2) Drop the legacy columns (Postgres supports IF EXISTS; SQLite skipped).
+    if dialect == "postgresql":
+        for col in ("h1b_lca_count", "h1b_approval_rate", "h1b_median_salary", "h1b_last_checked"):
+            try:
+                db.execute(text(f"ALTER TABLE companies DROP COLUMN IF EXISTS {col}"))
+            except Exception as e:
+                logger.warning("drop legacy column %s failed: %s", col, e)
+        db.commit()
+
+
+def migrate_autofill_dicts(db):
+    """Merge newly-added canonical keys into the editable autofill dictionaries.
+
+    autofill_field_patterns / autofill_option_synonyms are add-only user-editable
+    settings, so seed_settings never touches them once they exist. When new answer
+    keys ship (age_range, transgender, sexual_orientation, …) their default label
+    synonyms and option synonyms must be merged in without clobbering the user's
+    edits: only top-level keys the stored dict is missing are added.
+    """
+    for setting_key in ("autofill_field_patterns", "autofill_option_synonyms"):
+        row = db.query(Setting).filter(Setting.key == setting_key).first()
+        if not row:
+            continue
+        default_json = DEFAULT_SETTINGS.get(setting_key, ("{}", ""))[0]
+        try:
+            defaults = json.loads(default_json)
+            stored = json.loads(row.value or "{}")
+        except (ValueError, TypeError):
+            continue
+        changed = False
+        for k, v in defaults.items():
+            if k not in stored:
+                stored[k] = v
+                changed = True
+        if changed:
+            row.value = json.dumps(stored)
+    db.commit()
+
+
 def run_seeds():
     db = SessionLocal()
     try:
         run_migrations(db)
         seed_settings(db)
+        migrate_autofill_dicts(db)
         seed_companies(db)
         seed_h1b_slugs(db)
         seed_searches(db)
@@ -747,5 +969,6 @@ def run_seeds():
         cleanup_removed_settings(db)
         migrate_llm_settings(db)
         migrate_cv_terminology(db)
+        migrate_h1b_to_visa_cache(db)
     finally:
         db.close()

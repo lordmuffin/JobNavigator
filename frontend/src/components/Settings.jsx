@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api'
+import ModelCombobox from './ModelCombobox'
 import { RefreshCw, Send, Play, Info, Eye, EyeOff } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -13,6 +14,27 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('settings_tab') || 'general')
   const switchTab = (tab) => { setActiveTab(tab); localStorage.setItem('settings_tab', tab) }
   const togglePw = (key) => setShowPw(p => ({...p, [key]: !p[key]}))
+
+  // Live model catalogs for the "Add Custom Model" typeahead (per provider).
+  const SEARCHABLE_PROVIDERS = ['openrouter', 'openai', 'claude_api', 'claude_code']
+  const [customProvider, setCustomProvider] = useState('claude_api')
+  const [customModelName, setCustomModelName] = useState('')
+  const [providerModels, setProviderModels] = useState({})   // provider -> [{id,name}]
+  const [modelsLoading, setModelsLoading] = useState({})      // provider -> bool
+  const [modelsError, setModelsError] = useState({})          // provider -> string
+  const fetchProviderModels = async (provider) => {
+    if (!SEARCHABLE_PROVIDERS.includes(provider)) return
+    if (providerModels[provider] || modelsLoading[provider]) return
+    setModelsLoading(p => ({ ...p, [provider]: true }))
+    setModelsError(p => ({ ...p, [provider]: '' }))
+    try {
+      const { data } = await api.get('/llm/models', { params: { provider } })
+      setProviderModels(p => ({ ...p, [provider]: data.models || [] }))
+    } catch (e) {
+      setModelsError(p => ({ ...p, [provider]: e?.response?.data?.detail || 'Could not load models' }))
+    }
+    setModelsLoading(p => ({ ...p, [provider]: false }))
+  }
 
   const fetchAll = async () => {
     try {
@@ -219,20 +241,16 @@ export default function SettingsPage() {
       </>)}
 
       {activeTab === 'ai' && (<>
-      {/* AI Scoring Configuration */}
+      {/* AI Models & Providers — global LLM config shared by every AI feature */}
       <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-semibold text-lg dark:text-gray-100">Resume AI Scoring Configuration</h2>
+          <h2 className="font-semibold text-lg dark:text-gray-100">AI Models &amp; Providers</h2>
           <div className="relative group">
             <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
             <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
-              <p className="font-semibold mb-1.5">How scoring works</p>
-              <p className="mb-1.5"><b>Primary LLM</b> — provider + model used for all Resume scoring. Claude API uses the API key from settings (or ANTHROPIC_API_KEY env var as fallback). Claude Code uses your subscription via OAuth. OpenAI/Ollama use their respective keys.</p>
-              <p className="mb-1.5"><b>Fallback LLM</b> — if the primary fails (rate limit, error, timeout), scoring automatically retries with this provider. Each has its own API key. Leave provider as "None" to disable.</p>
-              <p className="mb-1.5"><b>Add Custom Model</b> — models added here appear in both Primary and Fallback dropdowns for the selected provider.</p>
-              <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
-              <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
-              <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
+              <p className="font-semibold mb-1.5">Provider &amp; model config (used by every AI feature)</p>
+              <p className="mb-1.5"><b>Primary LLM</b> — the default provider + model every AI feature uses. Claude API uses the settings key (or ANTHROPIC_API_KEY). Claude Code uses your subscription via OAuth (same models as Claude API). OpenAI/Ollama use their keys. <b>OpenRouter</b> reaches every vendor with one key — vendor-prefixed slugs (e.g. <code>anthropic/claude-sonnet-5</code>), no prompt-cache discount.</p>
+              <p><b>Add Custom Model</b> — type to search a provider's live catalog (OpenRouter / OpenAI / Claude) or enter any slug, then Add. Models appear in the dropdowns; the × on a chip deletes one (removals persist).</p>
             </div>
           </div>
         </div>
@@ -256,6 +274,7 @@ export default function SettingsPage() {
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
                     <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
                   </select>
                 </div>
                 <div>
@@ -285,7 +304,158 @@ export default function SettingsPage() {
             </div>
           )
         })()}
-        {/* Fallback LLM */}
+        {/* Custom Models — shared across primary & fallback */}
+        {(() => {
+          const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
+          const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama', openrouter: 'OpenRouter' }
+          const canSearch = SEARCHABLE_PROVIDERS.includes(customProvider)
+          const liveModels = providerModels[customProvider] || []
+          const loadingModels = modelsLoading[customProvider]
+          const modelErr = modelsError[customProvider]
+          const addModel = () => {
+            const name = (customModelName || '').trim(); if (!name) return
+            if (!models.some(m => m.model === name && m.provider === customProvider)) {
+              const updated = [...models, { provider: customProvider, model: name, label: name + ' (custom)', custom: true }]
+              saveSetting('llm_models_list', updated)
+              setSettings(p => ({...p, llm_models_list: updated}))
+            }
+            setCustomModelName('')
+          }
+          return (
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Custom Model</label>
+              <div className="flex items-center gap-2">
+                <select value={customProvider}
+                  onChange={e => { setCustomProvider(e.target.value); fetchProviderModels(e.target.value) }}
+                  className="border rounded px-2 py-1 text-xs dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                  <option value="claude_api">Claude API</option>
+                  <option value="claude_code">Claude Code</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="openrouter">OpenRouter</option>
+                </select>
+                {canSearch ? (
+                  <ModelCombobox
+                    models={liveModels}
+                    value={customModelName}
+                    onChange={setCustomModelName}
+                    onFocus={() => fetchProviderModels(customProvider)}
+                    onEnter={addModel}
+                    loading={loadingModels}
+                    placeholder="Search live models…"
+                  />
+                ) : (
+                  <input type="text" value={customModelName}
+                    onChange={e => setCustomModelName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addModel() }}
+                    placeholder="Add custom model..."
+                    className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+                )}
+                <button onClick={addModel} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
+              </div>
+              {canSearch && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                  {loadingModels ? 'Loading live models…'
+                    : modelErr ? modelErr
+                    : liveModels.length ? `${liveModels.length} models available — type to search, then Add.${customProvider === 'openrouter' ? ' Slugs are vendor-prefixed (e.g. anthropic/claude-sonnet-5).' : ''}`
+                    : 'Type a model name, then Add.'}
+                </p>
+              )}
+              {(() => {
+                const provModels = models.filter(m => m.provider === customProvider)
+                if (!provModels.length) return null
+                return (
+                  <div className="mt-2">
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-1">{providerLabels[customProvider] || customProvider} models — <b>×</b> to delete:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {provModels.map(m => (
+                        <span key={m.provider + ':' + m.model} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
+                          {m.model}{m.custom && <span className="text-blue-400" title="custom">•</span>}
+                          <button title="Delete model" onClick={() => {
+                            if (!window.confirm(`Delete model "${m.model}" from ${providerLabels[m.provider] || m.provider}?`)) return
+                            const updated = models.filter(x => !(x.model === m.model && x.provider === m.provider))
+                            saveSetting('llm_models_list', updated); setSettings(p => ({...p, llm_models_list: updated}))
+                          }} className="text-red-400 hover:text-red-600 leading-none">&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* Resume AI Scoring Configuration — scoring-specific settings */}
+      <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="font-semibold text-lg dark:text-gray-100">Resume AI Scoring Configuration</h2>
+          <div className="relative group">
+            <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
+            <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-80 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
+              <p className="font-semibold mb-1.5">How scoring works</p>
+              <p className="mb-1.5"><b>Scoring LLM → Fallback</b> — scores with the Scoring LLM (empty = the shared Primary); on error/rate-limit it retries with the Fallback (scoring-only).</p>
+              <p className="mb-1.5"><b>Scoring Depth</b> — <i>Light</i>: scores only (fast, 600 tokens). <i>Full</i>: scores + keyword analysis + requirement mapping + report (2000 tokens).</p>
+              <p className="mb-1.5"><b>On Save Action</b> — what happens when you save a job. Only runs if the job has no existing scores.</p>
+              <p><b>Rubric &amp; Output Schemas</b> — editable prompts sent to the LLM. CV_NAMES_HERE is replaced with actual Resume names at runtime.</p>
+            </div>
+          </div>
+        </div>
+        {/* Scoring provider/model — empty = use Primary. Falls back to the Fallback below on error. */}
+        {(() => {
+          const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
+          const scProvider = settings.scoring_llm_provider || ''
+          const effProvider = scProvider || settings.llm_provider || 'claude_api'
+          const filtered = models.filter(m => m.provider === effProvider)
+          const currentModel = settings.scoring_llm_model || ''
+          const currentInList = filtered.some(m => m.model === currentModel)
+          return (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Scoring LLM <span className="font-normal text-gray-400">(empty = use Primary)</span></label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Provider</label>
+                  <select value={scProvider}
+                    onChange={e => { setSettings(p => ({...p, scoring_llm_provider: e.target.value})); saveSetting('scoring_llm_provider', e.target.value) }}
+                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <option value="">Use Primary</option>
+                    <option value="claude_api">Claude API (Anthropic)</option>
+                    <option value="claude_code">Claude Code (Subscription)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Model</label>
+                  <select value={currentModel}
+                    onChange={e => { setSettings(p => ({...p, scoring_llm_model: e.target.value})); saveSetting('scoring_llm_model', e.target.value) }}
+                    className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    <option value="">Use Primary</option>
+                    {!currentInList && currentModel && <option value={currentModel}>Custom: {currentModel}</option>}
+                    {filtered.map(m => <option key={m.model} value={m.model}>{m.label || m.model}</option>)}
+                  </select>
+                </div>
+              </div>
+              {scProvider && !['claude_code', 'ollama'].includes(scProvider) && (
+                <div className="mt-2">
+                  <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">API Key</label>
+                  <div className="relative">
+                    <input type={showPw.scoring_llm_api_key ? 'text' : 'password'} autoComplete="off" value={settings.scoring_llm_api_key || ''}
+                      onChange={e => setSettings(p => ({...p, scoring_llm_api_key: e.target.value}))}
+                      onBlur={e => saveSetting('scoring_llm_api_key', e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full pr-8 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
+                    <button type="button" onClick={() => togglePw('scoring_llm_api_key')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      {showPw.scoring_llm_api_key ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+        {/* Fallback LLM — scoring-only */}
         {(() => {
           const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
           const provider = settings.llm_fallback_provider || ''
@@ -294,7 +464,7 @@ export default function SettingsPage() {
           const currentInList = filtered.some(m => m.model === currentModel)
           return (
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Fallback LLM <span className="font-normal text-gray-400">(auto-switch on error/rate limit)</span></label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Fallback LLM <span className="font-normal text-gray-400">(scoring only — auto-switch on error/rate limit)</span></label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] text-gray-500 dark:text-gray-500 mb-0.5">Provider</label>
@@ -306,6 +476,7 @@ export default function SettingsPage() {
                     <option value="claude_code">Claude Code (Subscription)</option>
                     <option value="openai">OpenAI</option>
                     <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
                   </select>
                 </div>
                 <div>
@@ -337,53 +508,8 @@ export default function SettingsPage() {
             </div>
           )
         })()}
-        {/* Custom Models — shared across primary & fallback */}
-        {(() => {
-          const models = Array.isArray(settings.llm_models_list) ? settings.llm_models_list : []
-          const customModels = models.filter(m => m.custom)
-          const providerLabels = { claude_api: 'Claude API', claude_code: 'Claude Code', openai: 'OpenAI', ollama: 'Ollama' }
-          return (
-            <div className="mb-5">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Custom Model</label>
-              <div className="flex items-center gap-2">
-                <select id="custom-model-provider" defaultValue={settings.llm_provider || 'claude_api'}
-                  className="border rounded px-2 py-1 text-xs dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
-                  <option value="claude_api">Claude API</option>
-                  <option value="claude_code">Claude Code</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="ollama">Ollama</option>
-                </select>
-                <input type="text" id="custom-model-name" placeholder="Add custom model..."
-                  className="border rounded px-2 py-1 text-xs flex-1 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
-                <button onClick={() => {
-                  const prov = document.getElementById('custom-model-provider').value
-                  const input = document.getElementById('custom-model-name')
-                  const name = input.value.trim(); if (!name) return
-                  if (models.some(m => m.model === name && m.provider === prov)) return
-                  const updated = [...models, { provider: prov, model: name, label: name + ' (custom)', custom: true }]
-                  saveSetting('llm_models_list', updated)
-                  setSettings(p => ({...p, llm_models_list: updated}))
-                  input.value = ''
-                }} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
-              </div>
-              {customModels.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {customModels.map(m => (
-                    <span key={m.provider + ':' + m.model} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
-                      <span className="text-gray-400">{providerLabels[m.provider] || m.provider}:</span> {m.model}
-                      <button onClick={() => {
-                        const updated = models.filter(x => !(x.model === m.model && x.provider === m.provider && x.custom))
-                        saveSetting('llm_models_list', updated); setSettings(p => ({...p, llm_models_list: updated}))
-                      }} className="text-red-400 hover:text-red-600">&times;</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })()}
         <hr className="border-gray-200 dark:border-gray-700 my-4" />
-        <div className="mt-4">
+        <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Max Parallel Scoring Jobs</label>
           <input type="number" min="1" max="20"
             className="border rounded px-2 py-1.5 text-sm w-20 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
@@ -486,6 +612,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -598,6 +725,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -698,6 +826,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -742,6 +871,34 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
             Placeholders: {'{persona} {qa_bank} {company} {position} {question} {max_chars}'}
           </p>
+        </div>
+
+        <hr className="border-gray-200 dark:border-gray-700 my-4" />
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Application Autofill (structured)</h3>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">Fills known-answer fields directly from field/option dictionaries — no LLM call for matched fields. Unmatched free-text questions still fall back to the generated flow above. On/off and the fill trigger (one-click vs. on page load) live in the extension popup.</p>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Field Patterns (JSON)</label>
+          <textarea
+            className="w-full border rounded px-3 py-2 text-sm font-mono dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+            rows={8}
+            defaultValue={typeof settings.autofill_field_patterns === 'string' ? settings.autofill_field_patterns : JSON.stringify(settings.autofill_field_patterns || {}, null, 2)}
+            onBlur={e => { try { saveSetting('autofill_field_patterns', JSON.parse(e.target.value)) } catch { alert('Field patterns must be valid JSON') } }}
+            placeholder='{"first_name": ["first name", "given name"]}'
+          />
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Maps a known field key to the label/placeholder text patterns used to detect it on application forms.</p>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Option Synonyms (JSON)</label>
+          <textarea
+            className="w-full border rounded px-3 py-2 text-sm font-mono dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+            rows={8}
+            defaultValue={typeof settings.autofill_option_synonyms === 'string' ? settings.autofill_option_synonyms : JSON.stringify(settings.autofill_option_synonyms || {}, null, 2)}
+            onBlur={e => { try { saveSetting('autofill_option_synonyms', JSON.parse(e.target.value)) } catch { alert('Option synonyms must be valid JSON') } }}
+            placeholder='{"yes": ["yes", "y", "true"]}'
+          />
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Maps a canonical answer value to the synonym text used to match dropdown/radio options on application forms.</p>
         </div>
       </section>
 
@@ -792,6 +949,7 @@ export default function SettingsPage() {
               <option value="claude_code">Claude Code (Subscription)</option>
               <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (Local)</option>
+                    <option value="openrouter">OpenRouter</option>
             </select>
           </div>
           <div>
@@ -1047,6 +1205,14 @@ export default function SettingsPage() {
               className="border rounded px-2 py-1.5 text-sm w-full dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600" />
           </div>
         </div>
+        <div className="mt-3">
+          <button onClick={() => triggerAction('/telegram/test')}
+            disabled={triggerStatus['/telegram/test'] === 'running'}
+            className={`inline-flex items-center gap-2 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200 ${triggerStatus['/telegram/test'] === 'running' ? 'opacity-50' : ''} ${triggerStatus['/telegram/test'] === 'done' ? 'bg-green-50 border-green-300 dark:bg-green-900/30' : ''}`}>
+            <Send size={14} />
+            {triggerStatus['/telegram/test'] === 'running' ? 'Sending…' : triggerStatus['/telegram/test'] === 'done' ? 'Sent!' : 'Send Test Telegram'}
+          </button>
+        </div>
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="mb-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-900 dark:text-blue-200">
             <b>Optional.</b> Outbound alerts and the daily digest work without any webhook configured.
@@ -1255,36 +1421,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Manual Triggers */}
-      <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-semibold text-lg dark:text-gray-100">Manual Triggers</h2>
-          <div className="relative group">
-            <Info size={15} className="text-gray-400 dark:text-gray-500 cursor-help" />
-            <div className="hidden group-hover:block absolute left-6 top-0 z-50 w-72 p-3 text-xs bg-gray-900 text-gray-100 rounded-lg shadow-lg leading-relaxed">
-              <p className="font-semibold mb-1.5">Manual Triggers</p>
-              <p>Run scraping, email checks, H-1B refresh, Resume analysis, and database backups on demand. These bypass scheduler intervals and run immediately.</p>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { endpoint: '/scrape/run-all', label: 'Run All Searches', icon: Play },
-            { endpoint: '/email/check-now', label: 'Check Email', icon: RefreshCw },
-            { endpoint: '/h1b/refresh', label: 'Refresh H-1B Data', icon: RefreshCw },
-            { endpoint: '/telegram/test', label: 'Send Test Telegram', icon: Send },
-          ].map(({ endpoint, label, icon: Icon }) => (
-            <button key={endpoint} onClick={() => triggerAction(endpoint)}
-              disabled={triggerStatus[endpoint] === 'running'}
-              className={`flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200 ${
-                triggerStatus[endpoint] === 'running' ? 'opacity-50' : ''
-              } ${triggerStatus[endpoint] === 'done' ? 'bg-green-50 border-green-300' : ''}`}>
-              <Icon size={14} />
-              {triggerStatus[endpoint] === 'running' ? 'Running...' : triggerStatus[endpoint] === 'done' ? 'Done!' : label}
-            </button>
-          ))}
-        </div>
-      </section>
       </>)}
     </div>
   )

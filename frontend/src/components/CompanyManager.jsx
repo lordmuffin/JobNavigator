@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api'
-import { Plus, Edit2, X, Play, Loader2, ExternalLink, Camera, Power, PowerOff, Tags, FlaskConical } from 'lucide-react'
+import InfoTip from './InfoTip'
+import { Plus, Edit2, X, Play, Loader2, ExternalLink, Camera, Power, PowerOff, Tags, FlaskConical, AlertTriangle } from 'lucide-react'
 
 const TIER_COLORS = { 1: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300', 2: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300', 3: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' }
 
@@ -127,6 +128,12 @@ function editorToUrls(items) {
 
 export default function CompanyManager() {
   const [companies, setCompanies] = useState([])
+  const [downMap, setDownMap] = useState({})  // company id -> failing-scrape reason
+  useEffect(() => {
+    api.get('/health/entities').then(({ data }) => {
+      const m = {}; (data.companies || []).forEach(c => { m[c.id] = c.reason }); setDownMap(m)
+    }).catch(() => {})
+  }, [])
   const [resumes, setResumes] = useState([])
   const [personaPopulated, setPersonaPopulated] = useState(false)
   const [editModal, setEditModal] = useState(null)
@@ -261,7 +268,15 @@ export default function CompanyManager() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Company Manager</h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Company Manager</h1>
+          <InfoTip title="Company Manager">
+            Companies scraped directly from their own career pages. Add a company with its ATS URL(s) —
+            Greenhouse, Workday, Lever, Ashby, and more are auto-detected — plus per-company title filters,
+            a scrape interval, and auto-score. <b>Aliases</b> match incoming jobs to the right company.
+            Companies are created only here or when you click <b>Applied</b> on a job — never during scraping.
+          </InfoTip>
+        </div>
         <div className="flex gap-2">
           <button onClick={() => bulkActivate(true)}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-900 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-800"
@@ -776,6 +791,11 @@ export default function CompanyManager() {
               <tr key={c.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-2 font-medium align-middle">
                       <span className="inline-flex items-center gap-1">
+                        {downMap[c.id] && (
+                          <span title={`Needs attention — ${downMap[c.id]}`} className="text-amber-500 cursor-help">
+                            <AlertTriangle size={13} />
+                          </span>
+                        )}
                         {c.name}
                         {(c.aliases || []).length > 0 && (
                           <span title={c.aliases.join(', ')} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 cursor-help">

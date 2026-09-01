@@ -223,4 +223,92 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     return true; // Async response
   }
+
+  // Content script requests the structured-autofill config (answers + dictionaries)
+  if (msg.type === 'autofill_config') {
+    chrome.storage.sync.get(['serverUrl', 'apiKey'], async (settings) => {
+      const serverUrl = settings.serverUrl || 'http://localhost';
+      const apiKey = settings.apiKey || '';
+      try {
+        const headers = {};
+        if (apiKey) headers['X-API-Key'] = apiKey;
+        const resp = await fetch(`${serverUrl}/api/autofill/config`, { headers });
+        if (!resp.ok) {
+          sendResponse({ error: `Server error: ${resp.status}` });
+          return;
+        }
+        sendResponse({ config: await resp.json() });
+      } catch (e) {
+        sendResponse({ error: e.message });
+      }
+    });
+    return true; // Async response
+  }
+});
+
+// --- Application Autofill: streaming draft relay (SSE over a long-lived port) ---
+// The content script can't stream cross-origin easily, so it opens a port named
+// 'autofill_stream', posts {question, company, position, max_chars}, and we relay
+// the backend SSE endpoint back as {delta} / {done} / {error} port messages.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'autofill_stream') return;
+
+  let aborter = null;
+  port.onDisconnect.addListener(() => { if (aborter) aborter.abort(); });
+
+  port.onMessage.addListener((req) => {
+    if (!req || req.type !== 'start') return;
+    chrome.storage.sync.get(['serverUrl', 'apiKey'], async (settings) => {
+      const serverUrl = settings.serverUrl || 'http://localhost';
+      const apiKey = settings.apiKey || '';
+      aborter = new AbortController();
+      const post = (m) => { try { port.postMessage(m); } catch (_) {} };
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (apiKey) headers['X-API-Key'] = apiKey;
+        const resp = await fetch(`${serverUrl}/api/autofill/answer/stream`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            question: req.question,
+            company: req.company,
+            position: req.position,
+            max_chars: req.max_chars,
+            refinements: req.refinements || [],
+          }),
+          signal: aborter.signal,
+        });
+        if (!resp.ok || !resp.body) {
+          post({ type: 'error', error: `Server error: ${resp.status}` });
+          return;
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          // SSE frames are separated by a blank line
+          let idx;
+          while ((idx = buf.indexOf('\n\n')) !== -1) {
+            const frame = buf.slice(0, idx);
+            buf = buf.slice(idx + 2);
+            const line = frame.split('\n').find((l) => l.startsWith('data:'));
+            if (!line) continue;
+            const data = line.slice(5).trim();
+            if (data === '[DONE]') { post({ type: 'done' }); continue; }
+            try {
+              const obj = JSON.parse(data);
+              if (obj.delta) post({ type: 'delta', delta: obj.delta });
+              else if (obj.error) post({ type: 'error', error: obj.error });
+            } catch (_) { /* ignore malformed frame */ }
+          }
+        }
+        post({ type: 'done' });
+      } catch (e) {
+        if (e.name !== 'AbortError') post({ type: 'error', error: e.message });
+      }
+    });
+  });
 });

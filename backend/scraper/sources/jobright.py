@@ -483,8 +483,7 @@ async def run(search: Search) -> dict:
                     await check_job_h1b(job, db)
                     from backend.models.db import find_company_by_name
                     company_obj = find_company_by_name(db, j["company"])
-                    h1b_median = company_obj.h1b_median_salary if company_obj else None
-                    apply_salary_to_job(job, h1b_median)
+                    apply_salary_to_job(job, getattr(job, "_h1b_median", None))
                 except Exception as e:
                     logger.warning(f"Inline analysis failed for {j['title']}: {e}")
 

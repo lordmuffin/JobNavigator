@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import api from '../api'
+import InfoTip from './InfoTip'
 import { RefreshCw, Play, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell, Sankey } from 'recharts'
 
@@ -81,7 +82,7 @@ const formatDuration = (seconds) => {
 
 function LlmCostPanel() {
   const [data, setData] = useState(null)
-  const [days, setDays] = useState(7)
+  const [days, setDays] = useState(0)
   const [sortKey, setSortKey] = useState('cost_usd')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -124,7 +125,12 @@ function LlmCostPanel() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">LLM Costs — last {days} days</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">LLM Costs — {days > 0 ? `last ${days} days` : 'all time'}</h2>
+          <InfoTip title="How costs are priced">
+            <b>OpenAI</b> and <b>Claude</b> prices are a static table, current as of <b>August 2026</b> (no pricing API exists for them). <b>OpenRouter</b> uses <b>live pricing</b> from its catalog: refreshed when the backend starts, then automatically at most every <b>12 hours</b> (on the next OpenRouter call). <b>Claude Code</b> (subscription) and <b>Ollama</b> (local) count as $0. Cost is computed per call at log time, so past rows keep the price in effect then.
+          </InfoTip>
+        </div>
         <select
           value={days}
           onChange={e => setDays(parseInt(e.target.value, 10))}
@@ -133,6 +139,7 @@ function LlmCostPanel() {
           <option value={1}>1d</option>
           <option value={7}>7d</option>
           <option value={30}>30d</option>
+          <option value={0}>All time</option>
         </select>
       </div>
       <div className="grid grid-cols-3 gap-4 mb-3">
@@ -188,6 +195,7 @@ export default function Stats() {
   const [schedulerJobs, setSchedulerJobs] = useState([])
   const [activityLog, setActivityLog] = useState([])
   const [runHistory, setRunHistory] = useState([])
+  const [triggering, setTriggering] = useState(() => new Set())
   const [timeline, setTimeline] = useState([])
   const [scoreDistribution, setScoreDistribution] = useState([])
   const [sankeyData, setSankeyData] = useState(null)
@@ -297,9 +305,11 @@ export default function Stats() {
   }
 
   const triggerJob = async (jobId, triggerUrl) => {
+    // Optimistic spinner so even very fast jobs give visible feedback; longer jobs
+    // stay lit by job.running from the poll.
+    setTriggering(prev => { const n = new Set(prev); n.add(jobId); return n })
     try {
       await api.post(triggerUrl)
-      // Immediately refresh to show running state
       fetchSchedulerJobs()
     } catch (e) {
       if (e.response?.status === 409) {
@@ -307,6 +317,8 @@ export default function Stats() {
       } else {
         console.error('Trigger failed:', e)
       }
+    } finally {
+      setTimeout(() => setTriggering(prev => { const n = new Set(prev); n.delete(jobId); return n }), 4000)
     }
   }
 
@@ -393,10 +405,10 @@ export default function Stats() {
                   { stage: 'Interview', count: stats.application_statuses?.interview || 0 },
                   { stage: 'Offer', count: stats.application_statuses?.offer || 0 },
                   { stage: 'Rejected', count: stats.application_statuses?.rejected || 0 },
-                ]} margin={{ top: 5, right: 20, left: 70, bottom: 5 }}>
+                ]} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} stroke={axisColor} />
-                  <YAxis type="category" dataKey="stage" tick={{ fontSize: 12, fill: axisColor }} stroke={axisColor} />
+                  <YAxis type="category" dataKey="stage" width={72} tick={{ fontSize: 12, fill: axisColor }} stroke={axisColor} />
                   <Tooltip contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText }} labelStyle={{ color: tooltipText }} itemStyle={{ color: tooltipText }} />
                   <Bar dataKey="count" name="Count">
                     {[0, 1, 2, 3].map(i => (
@@ -434,7 +446,7 @@ export default function Stats() {
 
       {/* Jobs Timeline - full width */}
       <section className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 mb-6">
-        <h2 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Jobs Discovered (Last 30 Days)</h2>
+        <h2 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">New Jobs (Last 30 Days)</h2>
         {timeline.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={timeline} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -443,7 +455,7 @@ export default function Stats() {
               <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} stroke={axisColor} />
               <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11, fill: '#22c55e' }} stroke="#22c55e" />
               <Tooltip contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText }} labelStyle={{ color: tooltipText }} itemStyle={{ color: tooltipText }} />
-              <Line yAxisId="left" type="monotone" dataKey="total" stroke="#6366f1" name="Discovered" strokeWidth={2} />
+              <Line yAxisId="left" type="monotone" dataKey="total" stroke="#6366f1" name="New" strokeWidth={2} />
               <Line yAxisId="right" type="monotone" dataKey="applied" stroke="#22c55e" name="Applied" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
@@ -464,28 +476,30 @@ export default function Stats() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b dark:border-gray-700">
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Job</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Name</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Job ID</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Schedule</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Next Run (CET)</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 w-40">Status</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 w-32">Actions</th>
               </tr>
             </thead>
             <tbody>
               {schedulerJobs.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No scheduled jobs</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No scheduled jobs</td></tr>
               ) : schedulerJobs.map(job => {
-                const isRunning = !!job.running
+                const isRunning = !!job.running || triggering.has(job.id)
                 return (
                   <tr key={job.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">{job.name}</td>
+                    <td className="px-4 py-2 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">{job.id}</td>
                     <td className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap" title={job.schedule}>{decodeCron(job.schedule)}</td>
                     <td className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatCET(job.next_run)}</td>
-                    <td className="px-4 py-2 text-xs">
+                    <td className="px-4 py-2 text-xs whitespace-nowrap">
                       {isRunning ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 animate-pulse">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 animate-pulse whitespace-nowrap">
                           <Loader2 size={10} className="animate-spin" />
-                          Running ({Math.round(job.running.elapsed_seconds)}s)
+                          Running ({Math.round(job.running?.elapsed_seconds || 0)}s)
                         </span>
                       ) : job.schedule === 'Manual only' ? (
                         <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">Manual</span>
@@ -500,14 +514,14 @@ export default function Stats() {
                         <button
                           onClick={() => triggerJob(job.id, job.trigger_url)}
                           disabled={isRunning}
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
+                          className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded min-w-[92px] ${
                             isRunning
                               ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60'
                           }`}
-                          title={isRunning ? 'Already running' : 'Run Now'}>
+                          title={isRunning ? 'Already running' : 'Run now (manual)'}>
                           {isRunning ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-                          {isRunning ? 'Running' : 'Run'}
+                          {isRunning ? 'Running' : 'Manual Run'}
                         </button>
                       ) : (
                         <span className="text-gray-300 dark:text-gray-600">-</span>
@@ -531,7 +545,7 @@ export default function Stats() {
             <thead>
               <tr className="border-b dark:border-gray-700">
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Time (CET)</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Job Type</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Job ID</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Trigger</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Duration</th>
@@ -544,7 +558,7 @@ export default function Stats() {
               ) : runHistory.map(run => (
                 <tr key={run.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatCET(run.started_at)}</td>
-                  <td className="px-4 py-2 text-xs font-medium text-gray-800 dark:text-gray-200">{run.job_type}</td>
+                  <td className="px-4 py-2 text-xs font-mono text-gray-600 dark:text-gray-400">{run.job_type}</td>
                   <td className="px-4 py-2 text-xs">
                     <span className={`px-1.5 py-0.5 rounded ${TRIGGER_COLORS[run.trigger] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
                       {run.trigger}
