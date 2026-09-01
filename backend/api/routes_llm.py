@@ -65,8 +65,16 @@ async def _fetch_openrouter() -> list:
 
 
 async def _fetch_openai(key: str) -> list:
+    # Honor OPENAI_BASE_URL, the same way analyzer/llm_client.py already does for
+    # inference. Without this the model picker always queried api.openai.com even
+    # when every actual completion went to a self-hosted OpenAI-compatible
+    # endpoint, so /models 502'd with "the provider rejected the configured API
+    # key" -- the proxy's token is not an OpenAI token. Inference worked; only
+    # the catalog appeared broken, which is a confusing way to fail.
+    custom_base = os.getenv("OPENAI_BASE_URL") or ""
+    base = (custom_base or "https://api.openai.com/v1").rstrip("/")
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get("https://api.openai.com/v1/models",
+        resp = await client.get(f"{base}/models",
                                 headers={"Authorization": f"Bearer {key}"})
         resp.raise_for_status()
         data = resp.json().get("data", [])
@@ -74,7 +82,13 @@ async def _fetch_openai(key: str) -> list:
     for m in data:
         mid = m.get("id", "")
         # Keep chat-capable families; skip embeddings/audio/image/moderation.
-        if mid.startswith("gpt") or re.match(r"^(o\d|chatgpt)", mid):
+        #
+        # Only meaningful against OpenAI itself. A custom endpoint advertises
+        # exactly what it can serve, under arbitrary ids (heavy, qwen-coder-32b,
+        # local-default), none of which match this pattern -- so applying the
+        # filter there returns an empty catalog, which looks identical to a
+        # broken connection.
+        if custom_base or mid.startswith("gpt") or re.match(r"^(o\d|chatgpt)", mid):
             out.append({"id": mid, "name": mid})
     return out
 
