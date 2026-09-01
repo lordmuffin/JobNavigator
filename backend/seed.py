@@ -420,13 +420,19 @@ def run_migrations(db):
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS best_cv_score FLOAT",
         "CREATE INDEX IF NOT EXISTS ix_jobs_best_cv_score ON jobs(best_cv_score)",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cache_error TEXT",
+        # cv_scores is Column(JSON) -> the PostgreSQL `json` type, not `jsonb`.
+        # Every operation below needs jsonb: jsonb_each_text(json) and
+        # jsonb_typeof(json) have no overload, and `json` has no equality
+        # operator at all, so `!= '{}'` is a third error in the same statement.
+        # Cast once per reference rather than migrating the column, which would
+        # need a table rewrite for no benefit.
         """UPDATE jobs SET best_cv_score = (
             SELECT MAX(CAST(value AS FLOAT))
-            FROM jsonb_each_text(cv_scores)
+            FROM jsonb_each_text(cv_scores::jsonb)
             WHERE value ~ '^[0-9]+(\\.[0-9]+)?$'
         ) WHERE cv_scores IS NOT NULL
-          AND jsonb_typeof(cv_scores) = 'object'
-          AND cv_scores != '{}'
+          AND jsonb_typeof(cv_scores::jsonb) = 'object'
+          AND cv_scores::jsonb != '{}'::jsonb
           AND best_cv_score IS NULL""",
         # 2026-04-23: Retire screening / phone_screen / final_round statuses.
         # Board collapses to applied / interview / offer / rejected. Existing
@@ -490,7 +496,20 @@ END $$;""",
     for sql in migrations:
         try:
             db.execute(text(sql))
+            db.commit()
         except Exception as e:
+            # Roll back before moving on. PostgreSQL aborts the entire
+            # transaction on any error, so without this the FIRST failing
+            # statement makes every later one fail with InFailedSqlTransaction --
+            # each logged as a benign-looking "Migration skipped" -- and the
+            # final commit() then has nothing to commit. One broken statement
+            # silently discarded the whole migration run, which is a very quiet
+            # way to end up with a half-migrated schema.
+            #
+            # Committing per statement (above) is what makes each migration
+            # independently durable, which is what the skip-and-continue design
+            # already assumed was happening.
+            db.rollback()
             logger.warning(f"Migration skipped: {e}")
     db.commit()
 
