@@ -4,6 +4,9 @@ name: Publish Images
 # carries the homelab patches directly (PR #1 merged), so this watches main
 # plus any v*-homelab release tag; ci.yml (push: false) still covers plain
 # build verification on every push/PR.
+#
+# Pushes to main still BUILD -- they just no longer produce a floating :main
+# tag. Every published ref is immutable; see the tags block below.
 on:
   push:
     branches: [main]
@@ -43,8 +46,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-backend
+          # No type=ref,event=branch. A floating :main (and :homelab) tag that
+          # silently repoints on every push is exactly what the consuming repo's
+          # pinning policy exists to avoid -- np-home-homelab pins these images
+          # by immutable digest, so a moving tag is at best noise and at worst a
+          # trap for anyone who copies it. Immutable refs only: the short commit
+          # SHA, plus v*-homelab release tags.
           tags: |
-            type=ref,event=branch
             type=ref,event=tag
             type=sha,format=short,prefix=
 
@@ -80,8 +88,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-frontend
+          # No type=ref,event=branch. A floating :main (and :homelab) tag that
+          # silently repoints on every push is exactly what the consuming repo's
+          # pinning policy exists to avoid -- np-home-homelab pins these images
+          # by immutable digest, so a moving tag is at best noise and at worst a
+          # trap for anyone who copies it. Immutable refs only: the short commit
+          # SHA, plus v*-homelab release tags.
           tags: |
-            type=ref,event=branch
             type=ref,event=tag
             type=sha,format=short,prefix=
 
