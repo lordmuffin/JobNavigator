@@ -275,9 +275,15 @@ async def _call_claude_code(prompt: str, system: str, model: str, max_tokens: in
 
 
 async def _call_openai(prompt: str, system: str, model: str, api_key: str, max_tokens: int) -> dict:
-    """Call the OpenAI API. Returns {text, usage}."""
+    """Call the OpenAI API. Returns {text, usage}.
+
+    base_url defaults to OPENAI_BASE_URL so this provider can be pointed at an
+    OpenAI-compatible proxy (e.g. an in-cluster LiteLLM gateway) instead of
+    api.openai.com. Unset env falls back to the SDK default (None).
+    """
+    import os
     from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=api_key)
+    client = AsyncOpenAI(api_key=api_key, base_url=os.getenv("OPENAI_BASE_URL") or None)
     response = await client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,
