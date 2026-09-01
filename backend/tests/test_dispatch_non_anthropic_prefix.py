@@ -40,7 +40,7 @@ async def test_dispatch_concatenates_prefix_for_openai(monkeypatch):
     """openai provider receives cached_prefix + prompt combined."""
     captured = {}
 
-    async def fake_openai(prompt, system, model, api_key, max_tokens):
+    async def fake_openai(prompt, system, model, api_key, max_tokens, base_url=None):
         captured["prompt"] = prompt
         return {"text": "{}",
                 "usage": {"input_tokens": 10, "output_tokens": 5,
