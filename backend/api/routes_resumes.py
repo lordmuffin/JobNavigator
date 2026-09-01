@@ -194,7 +194,10 @@ async def _get_browser():
         return _pw_browser
     from playwright.async_api import async_playwright
     _pw_instance = await async_playwright().start()
-    _pw_browser = await _pw_instance.chromium.launch(headless=True, args=['--font-render-hinting=none'])
+    _pw_browser = await _pw_instance.chromium.launch(
+        headless=True,
+        args=['--font-render-hinting=none', '--no-sandbox', '--disable-dev-shm-usage'],
+    )
     logger.info("Warm Playwright browser started for PDF generation")
     return _pw_browser
 
