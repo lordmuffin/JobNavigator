@@ -200,7 +200,8 @@ async def call_autofill_llm_stream(prompt: str, system: str, max_tokens: int = 4
         return
     combined = f"{cached_prefix}\n\n{prompt}" if cached_prefix else prompt
     if provider in ("openai", "openrouter"):
-        base = "https://openrouter.ai/api/v1" if provider == "openrouter" else None
+        import os
+        base = "https://openrouter.ai/api/v1" if provider == "openrouter" else (os.getenv("OPENAI_BASE_URL") or None)
         async for c in _stream_openai(combined, system, model, api_key, max_tokens, base):
             yield c
         return
@@ -260,7 +261,9 @@ async def _dispatch(provider: str, model: str, api_key: str,
     if provider == "claude_code":
         return await _call_claude_code(combined, system, model, max_tokens)
     elif provider == "openai":
-        return await _call_openai(combined, system, model, api_key, max_tokens)
+        import os
+        return await _call_openai(combined, system, model, api_key, max_tokens,
+                                  base_url=os.getenv("OPENAI_BASE_URL") or None)
     elif provider == "openrouter":
         # OpenRouter is OpenAI-API-compatible — same client, different base URL.
         # One key reaches every vendor's models (model slug is vendor-prefixed).
