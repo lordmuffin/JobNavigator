@@ -199,7 +199,7 @@ async def set_session(body: dict, response: _Response):
             httponly=True,
             samesite="strict",
             max_age=60 * 60 * 24 * 30,  # 30 days
-            secure=False,  # set True when deployed over HTTPS
+            secure=True,
         )
         return {"ok": True}
     finally:

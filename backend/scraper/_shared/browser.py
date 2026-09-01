@@ -9,6 +9,8 @@ _STEALTH_ARGS = [
     "--disable-features=IsolateOrigins,site-per-process",
     "--no-first-run",
     "--no-default-browser-check",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
 ]
 _USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
