@@ -420,6 +420,22 @@ def run_migrations(db):
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS best_cv_score FLOAT",
         "CREATE INDEX IF NOT EXISTS ix_jobs_best_cv_score ON jobs(best_cv_score)",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cache_error TEXT",
+        # Convert cv_scores from json to jsonb on databases created before the
+        # model declared JSONB. create_all() never alters an existing column, so
+        # those keep the original `json` type and every jsonb operation against it
+        # fails -- including the runtime scrape filter in cv_scorer.py, which is
+        # what makes this a migration rather than a cosmetic tidy-up.
+        #
+        # Guarded on information_schema so it rewrites the table exactly once.
+        """DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name = 'jobs' AND column_name = 'cv_scores'
+                       AND data_type = 'json')
+          THEN
+            ALTER TABLE jobs ALTER COLUMN cv_scores TYPE jsonb USING cv_scores::jsonb;
+          END IF;
+        END $$;""",
         # cv_scores is Column(JSON) -> the PostgreSQL `json` type, not `jsonb`.
         # Every operation below needs jsonb: jsonb_each_text(json) and
         # jsonb_typeof(json) have no overload, and `json` has no equality

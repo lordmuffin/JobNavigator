@@ -6,7 +6,7 @@ from sqlalchemy import (
     Column, String, Integer, Float, Boolean, Text, DateTime, Date,
     ForeignKey, JSON, Index, UniqueConstraint, create_engine, text
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import backref, column_property, declarative_base, deferred, relationship, sessionmaker
 
 from backend.config import DATABASE_URL
@@ -148,7 +148,13 @@ class Job(Base):
     h1b_jd_flag = Column(Boolean, default=False)
     h1b_jd_snippet = Column(String, nullable=True)
     h1b_verdict = Column(String, nullable=True)  # likely | unlikely | unknown
-    cv_scores = Column(JSON, default={})     # {"CV Name": score, ...}
+    # JSONB, not JSON. Three separate places already treat this column as
+    # jsonb -- cv_scorer.py's `== '{}'::jsonb` filter, telegram.py's
+    # jsonb_each_text/jsonb_typeof digest query, and seed.py's best_cv_score
+    # backfill. `json` supports none of those: it has no equality operator,
+    # and there are no jsonb_* overloads for it. The column was the outlier,
+    # so it moves rather than the three call sites growing casts forever.
+    cv_scores = Column(JSONB, default={})    # {"CV Name": score, ...}
     best_cv_score = Column(Float, nullable=True, index=True)
     best_cv = Column(String, nullable=True)
     scoring_report = Column(JSON, nullable=True)  # Structured report: summary, keywords, requirement mapping
